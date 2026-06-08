@@ -1,0 +1,559 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
+using FluentResults;
+using Microsoft.Extensions.Logging;
+using SevenZipSharper.Compression;
+using SevenZipSharper.Interop;
+using SevenZipSharper.Interop.Archive;
+using SevenZipSharper.Interop.Streams;
+using static SevenZipSharper.Compression.SevenZipCompressorLog;
+
+namespace SevenZipSharper;
+
+/// <summary>
+/// Creates and modifies 7-Zip-compatible archives.
+/// </summary>
+/// <remarks>Dispose when done — the underlying native archive object is released in <see cref="Dispose"/>.</remarks>
+public sealed class SevenZipCompressor : IDisposable
+{
+    private readonly ArchiveFormat _format;
+    private readonly CompressionParameters _parameters;
+    private readonly ILogger<SevenZipCompressor> _logger;
+    private readonly IOutArchive _archive;
+    private readonly bool _applyNativeParameters;
+    private int _disposed;
+
+    /// <summary>
+    /// Initializes a new compressor for the given format and parameters.
+    /// </summary>
+    /// <param name="format">Archive format to create.</param>
+    /// <param name="parameters">Compression parameters applied to the archive.</param>
+    /// <param name="logger">Logger for diagnostic output.</param>
+    public SevenZipCompressor(
+        ArchiveFormat format,
+        CompressionParameters parameters,
+        ILogger<SevenZipCompressor> logger
+    )
+    {
+        NativeLibraryLoader.Register();
+        _format = format;
+        _parameters = parameters;
+        _logger = logger;
+        _archive = SevenZipLib.CreateArchiveObject<IOutArchive>(
+            ArchiveFormatRegistry.GetClassId(format)
+        );
+        _applyNativeParameters = true;
+    }
+
+    // For unit testing — bypasses native library creation and parameter application.
+    internal SevenZipCompressor(
+        ArchiveFormat format,
+        CompressionParameters parameters,
+        IOutArchive archive,
+        ILogger<SevenZipCompressor> logger
+    )
+    {
+        _format = format;
+        _parameters = parameters;
+        _archive = archive;
+        _logger = logger;
+        _applyNativeParameters = false;
+    }
+
+    /// <summary>
+    /// Creates a new compressor, returning <c>Result.Fail</c> if the native library cannot be loaded.
+    /// </summary>
+    /// <param name="format">Archive format to create.</param>
+    /// <param name="parameters">Compression parameters applied to the archive.</param>
+    /// <param name="logger">Logger for diagnostic output.</param>
+    /// <returns>A successful result containing the compressor, or a failed result with the error message.</returns>
+    public static Result<SevenZipCompressor> Create(
+        ArchiveFormat format,
+        CompressionParameters parameters,
+        ILogger<SevenZipCompressor> logger
+    )
+    {
+        try
+        {
+            return Result.Ok(new SevenZipCompressor(format, parameters, logger));
+        }
+        catch (Exception ex)
+        {
+            return Result.Fail(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Compresses the provided in-memory entries into a single archive stream.
+    /// </summary>
+    /// <param name="entries">Entries to compress; each is a tuple of the archive-relative path and a readable data stream.</param>
+    /// <param name="output">Writable stream that receives the archive data.</param>
+    /// <param name="progress">Optional progress sink; receives a snapshot after each block of bytes is processed.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <returns>A successful result on completion, or a failed result if compression fails.</returns>
+    /// <exception cref="ObjectDisposedException">Thrown if the compressor has been disposed.</exception>
+    public async Task<Result> CompressAsync(
+        IEnumerable<(string EntryPath, Stream Data)> entries,
+        Stream output,
+        IProgress<CompressionProgress>? progress = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ObjectDisposedException.ThrowIf(_disposed != 0, this);
+        var entryList = entries.ToList();
+        return await CompressInternalAsync(entryList, output, progress, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Compresses files from disk into a single archive stream.
+    /// </summary>
+    /// <param name="filePaths">Absolute paths of the files to compress.</param>
+    /// <param name="basePath">Root directory used to compute archive-relative entry paths via <see cref="Path.GetRelativePath"/>.</param>
+    /// <param name="output">Writable stream that receives the archive data.</param>
+    /// <param name="progress">Optional progress sink; receives a snapshot after each block of bytes is processed.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <returns>A successful result on completion, or a failed result if compression fails.</returns>
+    /// <remarks>Each file is opened lazily when the native compressor requests its stream, so at most one file handle is held open at a time.</remarks>
+    /// <exception cref="ObjectDisposedException">Thrown if the compressor has been disposed.</exception>
+    public async Task<Result> CompressFilesAsync(
+        IEnumerable<string> filePaths,
+        string basePath,
+        Stream output,
+        IProgress<CompressionProgress>? progress = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ObjectDisposedException.ThrowIf(_disposed != 0, this);
+        var lazyStreams = new List<LazyFileStream>();
+        try
+        {
+            var entries = filePaths
+                .Select(path =>
+                {
+                    var lazy = new LazyFileStream(path);
+                    lazyStreams.Add(lazy);
+                    return (EntryPath: Path.GetRelativePath(basePath, path), Data: (Stream)lazy);
+                })
+                .ToList();
+
+            return await CompressInternalAsync(
+                    entries,
+                    output,
+                    progress,
+                    cancellationToken,
+                    ownsEntryStreams: true
+                )
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            foreach (var lazy in lazyStreams)
+                await lazy.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Compresses entries into a split multi-volume archive.
+    /// </summary>
+    /// <param name="entries">Entries to compress; each is a tuple of the archive-relative path and a readable data stream.</param>
+    /// <param name="volumeStreamFactory">Factory called with the zero-based volume index; must return a writable stream for that volume.</param>
+    /// <param name="maxVolumeBytes">Maximum size in bytes for each volume.</param>
+    /// <param name="progress">Optional progress sink; receives a snapshot after each block of bytes is processed.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <returns>A successful result on completion, or a failed result if compression fails.</returns>
+    /// <exception cref="ObjectDisposedException">Thrown if the compressor has been disposed.</exception>
+    public async Task<Result> CompressMultiVolumeAsync(
+        IEnumerable<(string EntryPath, Stream Data)> entries,
+        Func<int, Stream> volumeStreamFactory,
+        ulong maxVolumeBytes,
+        IProgress<CompressionProgress>? progress = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ObjectDisposedException.ThrowIf(_disposed != 0, this);
+        var entryList = entries.ToList();
+        return await CompressMultiVolumeInternalAsync(
+                entryList,
+                volumeStreamFactory,
+                maxVolumeBytes,
+                progress,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    // For unit testing — bypasses native library and parameter application.
+    internal Task<Result> CompressMultiVolumeAsync(
+        IOutArchive archive,
+        IEnumerable<(string EntryPath, Stream Data)> entries,
+        Func<int, Stream> volumeStreamFactory,
+        ulong maxVolumeBytes,
+        IProgress<CompressionProgress>? progress = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var entryList = entries.ToList();
+        var handler = new MultiVolumeCompressionHandler(
+            entryList,
+            progress,
+            volumeStreamFactory,
+            maxVolumeBytes,
+            cancellationToken
+        );
+        var firstVolume = new OutStreamAdapter(volumeStreamFactory(0));
+        return RunUpdateItemsAsync(
+            archive,
+            firstVolume,
+            (uint)entryList.Count,
+            handler,
+            cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// Appends new entries to an existing archive, writing the result to a new stream.
+    /// </summary>
+    /// <param name="existingArchive">Readable stream of the existing archive to read from.</param>
+    /// <param name="newEntries">New entries to append; each is a tuple of the archive-relative path and a readable data stream.</param>
+    /// <param name="output">Writable stream that receives the combined archive data.</param>
+    /// <param name="progress">Optional progress sink; receives a snapshot after each block of bytes is processed.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <returns>A successful result on completion, or a failed result if the operation fails or the format does not support append.</returns>
+    /// <exception cref="ObjectDisposedException">Thrown if the compressor has been disposed.</exception>
+    public async Task<Result> AppendAsync(
+        Stream existingArchive,
+        IEnumerable<(string EntryPath, Stream Data)> newEntries,
+        Stream output,
+        IProgress<CompressionProgress>? progress = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ObjectDisposedException.ThrowIf(_disposed != 0, this);
+        var validation = _parameters.Validate();
+        if (validation.IsFailed)
+            return validation;
+
+        var newEntryList = newEntries.ToList();
+
+        var inArchive = SevenZipLib.CreateArchiveObject<IInArchive>(
+            ArchiveFormatRegistry.GetClassId(_format)
+        );
+
+        try
+        {
+            var openHr = inArchive.Open(new InStreamAdapter(existingArchive), IntPtr.Zero, null);
+            if (openHr != HResult.Ok)
+            {
+                OpenExistingFailed(_logger, openHr);
+                return Result.Fail($"Failed to open existing archive (HRESULT: 0x{openHr:X8}).");
+            }
+
+            inArchive.GetNumberOfItems(out var existingCount);
+
+            if (inArchive is not IOutArchive outArchive)
+            {
+                AppendNotSupported(_logger, _format);
+                return Result.Fail("Archive format does not support append.");
+            }
+
+            ApplyParametersTo(outArchive);
+
+            return await AppendCoreAsync(
+                    inArchive,
+                    outArchive,
+                    existingCount,
+                    newEntryList,
+                    output,
+                    progress,
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            inArchive.Close();
+        }
+    }
+
+    // For unit testing — bypasses native library open and QueryInterface.
+    internal Task<Result> AppendAsync(
+        IInArchive inArchive,
+        IOutArchive outArchive,
+        uint existingCount,
+        IEnumerable<(string EntryPath, Stream Data)> newEntries,
+        Stream output,
+        IProgress<CompressionProgress>? progress = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var validation = _parameters.Validate();
+        if (validation.IsFailed)
+            return Task.FromResult(validation);
+
+        return AppendCoreAsync(
+            inArchive,
+            outArchive,
+            existingCount,
+            newEntries.ToList(),
+            output,
+            progress,
+            cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// Releases the underlying native archive object.
+    /// </summary>
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
+        if (_archive is IDisposable disposable)
+            disposable.Dispose();
+    }
+
+    private async Task<Result> CompressInternalAsync(
+        List<(string EntryPath, Stream Data)> entries,
+        Stream output,
+        IProgress<CompressionProgress>? progress,
+        CancellationToken cancellationToken,
+        bool ownsEntryStreams = false
+    )
+    {
+        var validation = _parameters.Validate();
+        if (validation.IsFailed)
+            return validation;
+
+        if (_applyNativeParameters)
+            ApplyParametersTo(_archive);
+
+        var outAdapter = new OutStreamAdapter(output);
+        var handler = new CompressionHandler(
+            entries,
+            progress,
+            cancellationToken,
+            ownsEntryStreams
+        );
+
+        var result = await RunUpdateItemsAsync(
+                _archive,
+                outAdapter,
+                (uint)entries.Count,
+                handler,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        if (result.IsSuccess)
+            CompressionCompleted(_logger, (uint)entries.Count, _format);
+
+        return result;
+    }
+
+    private async Task<Result> CompressMultiVolumeInternalAsync(
+        List<(string EntryPath, Stream Data)> entries,
+        Func<int, Stream> volumeStreamFactory,
+        ulong maxVolumeBytes,
+        IProgress<CompressionProgress>? progress,
+        CancellationToken cancellationToken
+    )
+    {
+        var validation = _parameters.Validate();
+        if (validation.IsFailed)
+            return validation;
+
+        if (_applyNativeParameters)
+            ApplyParametersTo(_archive);
+
+        var handler = new MultiVolumeCompressionHandler(
+            entries,
+            progress,
+            volumeStreamFactory,
+            maxVolumeBytes,
+            cancellationToken
+        );
+        var firstVolume = new OutStreamAdapter(volumeStreamFactory(0));
+
+        var result = await RunUpdateItemsAsync(
+                _archive,
+                firstVolume,
+                (uint)entries.Count,
+                handler,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        if (result.IsSuccess)
+            MultiVolumeCompleted(_logger, _format, (uint)entries.Count);
+
+        return result;
+    }
+
+    private async Task<Result> AppendCoreAsync(
+        IInArchive inArchive,
+        IOutArchive outArchive,
+        uint existingCount,
+        List<(string EntryPath, Stream Data)> newEntries,
+        Stream output,
+        IProgress<CompressionProgress>? progress,
+        CancellationToken cancellationToken
+    )
+    {
+        var handler = new AppendUpdateHandler(
+            inArchive,
+            existingCount,
+            newEntries,
+            progress,
+            cancellationToken
+        );
+        var outAdapter = new OutStreamAdapter(output);
+        var totalCount = existingCount + (uint)newEntries.Count;
+
+        var result = await RunUpdateItemsAsync(
+                outArchive,
+                outAdapter,
+                totalCount,
+                handler,
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+
+        if (result.IsSuccess)
+            AppendCompleted(_logger, _format, existingCount, newEntries.Count);
+
+        return result;
+    }
+
+    private Task<Result> RunUpdateItemsAsync(
+        IOutArchive archive,
+        IOutStream outStream,
+        uint count,
+        IArchiveUpdateCallback handler,
+        CancellationToken cancellationToken
+    ) =>
+        Task.Run(
+            () =>
+            {
+                var hr = archive.UpdateItems(outStream, count, handler);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (hr == HResult.Ok)
+                    return Result.Ok();
+
+                CompressionFailed(_logger, _format, hr);
+                return Result.Fail($"Compression failed (HRESULT: 0x{hr:X8}).");
+            },
+            cancellationToken
+        );
+
+    private void ApplyParametersTo(IOutArchive archive)
+    {
+        // Zip does not support LZMA2 — fall back to Deflate.
+        // NOTE: Other single-codec formats (Tar, GZip, BZip2, Xz) also need compatible method
+        // mappings here; audit them before adding support for those formats.
+        var parameters =
+            _format == ArchiveFormat.Zip && _parameters.Method == CompressionMethod.Lzma2
+                ? _parameters with
+                {
+                    Method = CompressionMethod.Deflate,
+                }
+                : _parameters;
+        var (names, values) = CompressionParametersMapper.ToSetProperties(parameters);
+        if (names.Length == 0)
+            return;
+
+        var namePointers = new nint[names.Length];
+        try
+        {
+            for (var i = 0; i < names.Length; i++)
+                namePointers[i] = SevenZipWideString.Alloc(names[i]);
+
+            if (archive is ISetProperties setProps)
+            {
+                var nameHandle = GCHandle.Alloc(namePointers, GCHandleType.Pinned);
+                try
+                {
+                    var valuesHandle = GCHandle.Alloc(values, GCHandleType.Pinned);
+                    try
+                    {
+                        setProps.SetProperties(
+                            nameHandle.AddrOfPinnedObject(),
+                            valuesHandle.AddrOfPinnedObject(),
+                            (uint)names.Length
+                        );
+                    }
+                    finally
+                    {
+                        valuesHandle.Free();
+                    }
+                }
+                finally
+                {
+                    nameHandle.Free();
+                }
+            }
+        }
+        finally
+        {
+            foreach (var p in namePointers.Where(p => p != 0))
+                SevenZipWideString.Free(p);
+            for (var i = 0; i < values.Length; i++)
+                values[i].Clear();
+        }
+    }
+
+    // Opens the underlying FileStream lazily on the first Seek or Read call so
+    // CompressFilesAsync holds at most one file open at a time.
+    private sealed class LazyFileStream : Stream
+    {
+        private readonly string _path;
+        private FileStream? _inner;
+
+        internal LazyFileStream(string path)
+        {
+            _path = path;
+        }
+
+        private FileStream Inner =>
+            _inner ??= new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => true;
+
+        public override bool CanWrite => false;
+
+        public override long Length => Inner.Length;
+
+        public override long Position
+        {
+            get => Inner.Position;
+            set => Inner.Position = value;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            Inner.Read(buffer, offset, count);
+
+        public override long Seek(long offset, SeekOrigin origin) => Inner.Seek(offset, origin);
+
+        public override void Flush() => _inner?.Flush();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                _inner?.Dispose();
+            base.Dispose(disposing);
+        }
+    }
+}

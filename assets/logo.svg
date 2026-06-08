@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!--
+    SevenZipSharper — package icon
+    ColI aours:  #0B237F (deep royal blue)  |  #F97316 (orange)  |  #FFFFFF (white)
+    Mark:     bold geometric "7#" — references 7-Zip and C# (Sharper)
+                7 spans full shield height (blue into orange), tail inset from left wall
+                # sits upper-right in the blue section
+    Orange:   horizontal compression stripes, thicker→thinner toward tip, inset from walls
+    Export:   render to assets/icon.png at 128×128 for <PackageIcon> in SevenZipSharper.csproj
+  -->
+  <defs>
+    <clipPath id="shield">
+      <path d="M 19 21 L 109 21 Q 113 21 113 25
+               L 113 70 Q 111 109 64 123
+               Q  17 109  15  70 L  15  25
+               Q  15  21  19  21 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- Orange base — fills entire shield -->
+  <path fill="#F97316"
+    d="M 19 21 L 109 21 Q 113 21 113 25
+       L 113 70 Q 111 109 64 123
+       Q  17 109  15  70 L  15  25
+       Q  15  21  19  21 Z"/>
+
+  <!-- Blue upper section — clipped to shield -->
+  <rect clip-path="url(#shield)"
+    x="15" y="21" width="98" height="66" fill="#0B237F"/>
+
+  <!-- Compression stripes — inset from walls, thicker at top, thinner toward tip -->
+  <rect clip-path="url(#shield)" fill="white" fill-opacity="0.55" x="31" y="93"  width="66" height="5"/>
+  <rect clip-path="url(#shield)" fill="white" fill-opacity="0.55" x="35" y="102" width="58" height="4"/>
+  <rect clip-path="url(#shield)" fill="white" fill-opacity="0.55" x="40" y="110" width="48" height="3"/>
+  <rect clip-path="url(#shield)" fill="white" fill-opacity="0.55" x="52" y="118" width="24" height="2"/>
+
+  <!-- Bold 7 — bar in blue, diagonal sweeps into orange.
+       Bottom corners at y=105 where the shield wall is ~x=31, so x=37/53 gives clear inset. -->
+  <path fill="white" clip-path="url(#shield)"
+    d="M 26 30 L 80 30 L 80 46
+       L 53 105 L 37 105
+       L 64 46 L 26 46 Z"/>
+
+  <!-- # (sharp) symbol — upper-right of the blue section -->
+  <!-- Vertical bars -->
+  <rect clip-path="url(#shield)" fill="white" x="84"  y="30" width="4" height="32"/>
+  <rect clip-path="url(#shield)" fill="white" x="99"  y="30" width="4" height="32"/>
+  <!-- Horizontal bars (extend past vertical bars, standard # style) -->
+  <rect clip-path="url(#shield)" fill="white" x="81"  y="39" width="26" height="5"/>
+  <rect clip-path="url(#shield)" fill="white" x="81"  y="52" width="26" height="5"/>
+
+  <!-- White outline border -->
+  <path fill="none" stroke="white" stroke-width="2" stroke-linejoin="round"
+    d="M 19 21 L 109 21 Q 113 21 113 25
+       L 113 70 Q 111 109 64 123
+       Q  17 109  15  70 L  15  25
+       Q  15  21  19  21 Z"/>
+</svg>

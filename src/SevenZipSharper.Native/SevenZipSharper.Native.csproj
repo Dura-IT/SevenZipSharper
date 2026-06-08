@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.Build.NoTargets">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+    <NoWarn>NU5128</NoWarn>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <Version>0.1.0</Version>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)../../artifacts/packages/</PackageOutputPath>
+    <PackageId>DuraIT.SevenZipSharper.Native</PackageId>
+    <Authors>Ben de Bruijn</Authors>
+    <Company>Durable IT Solutions</Company>
+    <Copyright>© 2026 Durable IT Solutions</Copyright>
+    <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Dura-IT/SevenZipSharper</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Dura-IT/SevenZipSharper</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Description>Native 7-Zip binaries for DuraIT.SevenZipSharper — Windows, macOS, and Linux (x64 + Arm64).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/"/>
+    <None Include="build/DuraIT.SevenZipSharper.Native.targets" Pack="true" PackagePath="build/"/>
+    <None Include="buildTransitive/DuraIT.SevenZipSharper.Native.targets" Pack="true" PackagePath="buildTransitive/"/>
+    <None Include="runtimes/win-x64/native/7z.dll" Pack="true" PackagePath="runtimes/win-x64/native/"
+          Condition="Exists('runtimes/win-x64/native/7z.dll')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>runtimes/win-x64/native/7z.dll</TargetPath>
+    </None>
+    <None Include="runtimes/win-arm64/native/7z.dll" Pack="true" PackagePath="runtimes/win-arm64/native/"
+          Condition="Exists('runtimes/win-arm64/native/7z.dll')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>runtimes/win-arm64/native/7z.dll</TargetPath>
+    </None>
+    <None Include="runtimes/osx-arm64/native/7z.dylib" Pack="true" PackagePath="runtimes/osx-arm64/native/"
+          Condition="Exists('runtimes/osx-arm64/native/7z.dylib')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>runtimes/osx-arm64/native/7z.dylib</TargetPath>
+    </None>
+    <None Include="runtimes/osx-x64/native/7z.dylib" Pack="true" PackagePath="runtimes/osx-x64/native/"
+          Condition="Exists('runtimes/osx-x64/native/7z.dylib')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>runtimes/osx-x64/native/7z.dylib</TargetPath>
+    </None>
+    <None Include="runtimes/linux-x64/native/7z.so" Pack="true" PackagePath="runtimes/linux-x64/native/"
+          Condition="Exists('runtimes/linux-x64/native/7z.so')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>runtimes/linux-x64/native/7z.so</TargetPath>
+    </None>
+    <None Include="runtimes/linux-arm64/native/7z.so" Pack="true" PackagePath="runtimes/linux-arm64/native/"
+          Condition="Exists('runtimes/linux-arm64/native/7z.so')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>runtimes/linux-arm64/native/7z.so</TargetPath>
+    </None>
+  </ItemGroup>
+
+</Project>

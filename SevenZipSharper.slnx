@@ -1,0 +1,40 @@
+<Solution>
+  <Folder Name="/docs/">
+    <File Path="CHANGELOG.md" />
+    <File Path="CONTRIBUTING.md" />
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+    <File Path="SECURITY.md" />
+  </Folder>
+  <Folder Name="/build/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Build.targets" />
+    <File Path="dotnet-tools.json" />
+    <File Path="global.json" />
+  </Folder>
+  <Folder Name="/.github/">
+    <File Path=".github/workflows/build-natives.yml" />
+    <File Path=".github/workflows/ci.yml" />
+    <File Path=".github/workflows/publish.yml" />
+  </Folder>
+  <Folder Name="/scripts/">
+    <File Path="scripts/7zip-sha256" />
+    <File Path="scripts/7zip-version" />
+    <File Path="scripts/fetch-natives.ps1" />
+    <File Path="scripts/fetch-natives.sh" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/SevenZipSharper/SevenZipSharper.csproj" />
+    <Project Path="src/SevenZipSharper.Native/SevenZipSharper.Native.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SevenZipSharper.UnitTests/SevenZipSharper.UnitTests.csproj" />
+    <Project Path="tests/SevenZipSharper.IntegrationTests/SevenZipSharper.IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/SevenZipSharper.Benchmarks/SevenZipSharper.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/assets/">
+    <File Path="assets/logo.svg" />
+  </Folder>
+</Solution>

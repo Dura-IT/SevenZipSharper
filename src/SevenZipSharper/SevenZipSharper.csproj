@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <Version>0.1.0</Version>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)../../artifacts/packages/</PackageOutputPath>
+    <PackageId>DuraIT.SevenZipSharper</PackageId>
+    <Authors>Ben de Bruijn</Authors>
+    <Company>Durable IT Solutions</Company>
+    <Copyright>© 2026 Durable IT Solutions</Copyright>
+    <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Dura-IT/SevenZipSharper</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Dura-IT/SevenZipSharper</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Description>Cross-platform .NET 8+ library for reading and writing 7-zip archives.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\"/>
+    <!-- Export assets/logo.svg to PNG at 128×128 and save as assets/icon.png before packing. -->
+    <None Include="..\..\assets\icon.png" Pack="true" PackagePath="\" Condition="Exists('..\..\assets\icon.png')"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentResults" Version="4.0.0"/>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.8"/>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ReferenceOutputAssembly=false: Native produces no DLL — this reference exists only to
+         emit a NuGet <dependency> in the packed .nuspec so consumers get the native binaries
+         automatically when they add DuraIT.SevenZipSharper.
+         SetTargetFramework: Native is net8.0-only; tell MSBuild which TFM to use when this
+         multi-targeting project resolves the dependency, avoiding a TFM negotiation error. -->
+    <ProjectReference Include="../SevenZipSharper.Native/SevenZipSharper.Native.csproj"
+                      ReferenceOutputAssembly="false"
+                      SkipGetTargetFrameworkProperties="true"
+                      SetTargetFramework="TargetFramework=net8.0"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SevenZipSharper.UnitTests"/>
+  </ItemGroup>
+
+</Project>
