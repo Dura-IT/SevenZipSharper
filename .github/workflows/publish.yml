@@ -4,6 +4,9 @@ on:
   push:
     tags: ['v*']
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -29,18 +32,15 @@ jobs:
           dotnet pack src/SevenZipSharper/SevenZipSharper.csproj -c Release --nologo
           dotnet pack src/SevenZipSharper.Native/SevenZipSharper.Native.csproj -c Release --nologo
 
-      - name: Get OIDC token for NuGet
-        id: oidc
-        uses: actions/github-script@v7
+      - name: NuGet login
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841  # v1.2.0
         with:
-          script: |
-            const token = await core.getIDToken('nuget.org');
-            core.setSecret(token);
-            core.setOutput('token', token);
+          user: DuraITSolutions
 
       - name: Push to NuGet.org
         run: >
           dotnet nuget push artifacts/packages/*.nupkg
-          --api-key ${{ steps.oidc.outputs.token }}
+          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
