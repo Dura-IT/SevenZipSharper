@@ -29,28 +29,18 @@ jobs:
           dotnet pack src/SevenZipSharper/SevenZipSharper.csproj -c Release --nologo
           dotnet pack src/SevenZipSharper.Native/SevenZipSharper.Native.csproj -c Release --nologo
 
-      - name: Get NuGet publish token
-        id: get-nuget-token
+      - name: Get OIDC token for NuGet
+        id: oidc
         uses: actions/github-script@v7
         with:
           script: |
-            const oidcToken = await core.getIDToken('nuget.org');
-            const response = await fetch('https://api.nuget.org/v1/publish/authenticate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ oidcToken })
-            });
-            if (!response.ok) {
-              core.setFailed(`NuGet auth failed (${response.status}): ${await response.text()}`);
-              return;
-            }
-            const { tokenValue } = await response.json();
-            core.setSecret(tokenValue);
-            core.setOutput('token', tokenValue);
+            const token = await core.getIDToken('nuget.org');
+            core.setSecret(token);
+            core.setOutput('token', token);
 
       - name: Push to NuGet.org
         run: >
           dotnet nuget push artifacts/packages/*.nupkg
-          --api-key ${{ steps.get-nuget-token.outputs.token }}
+          --api-key ${{ steps.oidc.outputs.token }}
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
