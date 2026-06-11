@@ -31,13 +31,22 @@ jobs:
 
       - name: Get NuGet publish token
         id: get-nuget-token
-        run: |
-          OIDC_TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=nuget.org" | jq -r '.value')
-          NUGET_TOKEN=$(curl -s -X POST "https://api.nuget.org/v1/publish/authenticate" \
-            -H "Content-Type: application/json" \
-            -d "{\"oidcToken\": \"$OIDC_TOKEN\"}" | jq -r '.tokenValue')
-          echo "token=$NUGET_TOKEN" >> $GITHUB_OUTPUT
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const oidcToken = await core.getIDToken('nuget.org');
+            const response = await fetch('https://api.nuget.org/v1/publish/authenticate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ oidcToken })
+            });
+            if (!response.ok) {
+              core.setFailed(`NuGet auth failed (${response.status}): ${await response.text()}`);
+              return;
+            }
+            const { tokenValue } = await response.json();
+            core.setSecret(tokenValue);
+            core.setOutput('token', tokenValue);
 
       - name: Push to NuGet.org
         run: >
