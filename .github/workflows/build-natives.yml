@@ -11,6 +11,9 @@ concurrency:
   group: build-natives-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   unix:
     name: ${{ matrix.rid }}
@@ -18,10 +21,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest  # Apple Silicon
+          - os: macos-latest
             rid: osx-arm64
-          - os: macos-13      # Intel
+          - os: macos-latest  # cross-compile x64 on Apple Silicon
             rid: osx-x64
+            cc: clang -arch x86_64
+            cxx: clang++ -arch x86_64
+            target_rid: osx-x64
           - os: ubuntu-latest
             rid: linux-x64
           - os: ubuntu-24.04-arm
@@ -36,10 +42,24 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get install -y --no-install-recommends make g++
 
+      - name: Set compiler env vars
+        shell: bash
+        run: |
+          if [[ "${{ matrix.cc }}" != "" ]]; then
+            echo "CC=${{ matrix.cc }}" >> $GITHUB_ENV
+            echo "CXX=${{ matrix.cxx }}" >> $GITHUB_ENV
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            echo "CC=clang" >> $GITHUB_ENV
+            echo "CXX=clang++" >> $GITHUB_ENV
+          else
+            echo "CC=gcc" >> $GITHUB_ENV
+            echo "CXX=g++" >> $GITHUB_ENV
+          fi
+          if [[ "${{ matrix.target_rid }}" != "" ]]; then
+            echo "TARGET_RID=${{ matrix.target_rid }}" >> $GITHUB_ENV
+          fi
+
       - name: Build native library
-        env:
-          CC: ${{ runner.os == 'macOS' && 'clang' || 'gcc' }}
-          CXX: ${{ runner.os == 'macOS' && 'clang++' || 'g++' }}
         run: bash scripts/fetch-natives.sh
 
       - name: Upload artifact

@@ -42,7 +42,8 @@ case "$OS" in
     ;;
 esac
 
-RID="$PLATFORM-$ARCH_RID"
+# TARGET_RID can be set to override auto-detection (e.g. cross-compiling osx-x64 on arm64).
+RID="${TARGET_RID:-$PLATFORM-$ARCH_RID}"
 DEST_DIR="$RUNTIMES_DIR/$RID/native"
 mkdir -p "$DEST_DIR"
 
