@@ -58,6 +58,8 @@ Both existing libraries share the original API shape and require the caller to l
 | .NET 8 | — | Yes | **Yes** |
 | .NET 10 | — | — | **Yes** |
 
+**.NET Framework and .NET Standard are not supported.** The COM interop layer requires `[GeneratedComInterface]`/`[GeneratedComClass]` (.NET 7+) and native library resolution requires `NativeLibrary.SetDllImportResolver` (.NET Core 3.0+). Neither API exists on .NET Framework or any version of .NET Standard.
+
 ### Native library delivery
 
 | | SevenZipSharp | SharpSevenZip | **SevenZipSharper** |
