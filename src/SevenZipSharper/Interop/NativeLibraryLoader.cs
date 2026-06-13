@@ -36,8 +36,8 @@ internal static class NativeLibraryLoader
 
     internal static string ResolveLibraryPath(string assemblyDirectory)
     {
-        var rid = GetRuntimeIdentifier();
-        var fileName = GetLibraryFileName();
+        var rid = PlatformInfo.GetRuntimeIdentifier();
+        var fileName = PlatformInfo.GetLibraryFileName();
         var path = Path.Combine(assemblyDirectory, "runtimes", rid, "native", fileName);
 
         if (!File.Exists(path))
@@ -47,38 +47,5 @@ internal static class NativeLibraryLoader
             );
 
         return path;
-    }
-
-    internal static string GetRuntimeIdentifier()
-    {
-        var arch = RuntimeInformation.ProcessArchitecture switch
-        {
-            Architecture.X64 => "x64",
-            Architecture.Arm64 => "arm64",
-            _ => throw new PlatformNotSupportedException(
-                $"Unsupported processor architecture: {RuntimeInformation.ProcessArchitecture}."
-            ),
-        };
-
-        if (OperatingSystem.IsWindows())
-            return $"win-{arch}";
-        if (OperatingSystem.IsMacOS())
-            return $"osx-{arch}";
-        if (OperatingSystem.IsLinux())
-            return $"linux-{arch}";
-
-        throw new PlatformNotSupportedException("Unsupported operating system.");
-    }
-
-    internal static string GetLibraryFileName()
-    {
-        if (OperatingSystem.IsWindows())
-            return "7z.dll";
-        if (OperatingSystem.IsMacOS())
-            return "7z.dylib";
-        if (OperatingSystem.IsLinux())
-            return "7z.so";
-
-        throw new PlatformNotSupportedException("Unsupported operating system.");
     }
 }
