@@ -11,9 +11,14 @@ using SevenZipSharper.Compression;
 namespace SevenZipSharper.Benchmarks;
 
 /// <summary>
-/// Compares archive extraction performance against SharpSevenZip.
+/// Compares archive extraction performance against SharpSevenZip across formats and TFMs.
 /// Requires native 7-Zip libraries in runtimes/&lt;RID&gt;/native/ to run.
 /// </summary>
+/// <remarks>
+/// Per-iteration allocations (the MemoryStream wrapping the archive bytes, the output buffer reset)
+/// are excluded from the measurement window via <see cref="IterationSetupAttribute"/>. Only the
+/// open + list + extract sequence is timed.
+/// </remarks>
 [MemoryDiagnoser]
 [SimpleJob(RuntimeMoniker.Net80)]
 [SimpleJob(RuntimeMoniker.Net10_0)]
@@ -24,9 +29,10 @@ public class ExtractionBenchmarks
 
     private byte[] _archive = null!;
     private MemoryStream _outputBuffer = null!;
+    private MemoryStream _archiveStream = null!;
 
     [GlobalSetup]
-    public async Task SetupAsync()
+    public async Task GlobalSetupAsync()
     {
         var payload = GenerateCompressiblePayload(1024 * 1024);
 
@@ -45,15 +51,24 @@ public class ExtractionBenchmarks
         _outputBuffer = new MemoryStream(capacity: 2 * 1024 * 1024);
     }
 
+    [IterationSetup]
+    public void IterationSetup()
+    {
+        _outputBuffer.SetLength(0);
+        _archiveStream = new MemoryStream(_archive, writable: false);
+    }
+
+    [IterationCleanup]
+    public void IterationCleanup() => _archiveStream.Dispose();
+
     [GlobalCleanup]
-    public void Cleanup() => _outputBuffer.Dispose();
+    public void GlobalCleanup() => _outputBuffer.Dispose();
 
     [Benchmark(Description = "SevenZipSharper")]
     public async Task ExtractWithSevenZipSharper()
     {
-        _outputBuffer.SetLength(0);
         using var extractor = new SevenZipExtractor(
-            new MemoryStream(_archive),
+            _archiveStream,
             Format,
             NullLogger<SevenZipExtractor>.Instance
         );
@@ -68,15 +83,13 @@ public class ExtractionBenchmarks
     }
 
     [Benchmark(Description = "SharpSevenZip", Baseline = true)]
-    public async Task ExtractWithSharpSevenZip()
-    {
-        _outputBuffer.SetLength(0);
-        global::SharpSevenZip.SharpSevenZipExtractor.SetLibraryPath(NativeLibPath);
-        using var extractor = new global::SharpSevenZip.SharpSevenZipExtractor(
-            new MemoryStream(_archive)
-        );
-        await extractor.ExtractFileAsync(0, _outputBuffer);
-    }
+    public Task ExtractWithSharpSevenZip() =>
+        Task.Run(() =>
+        {
+            global::SharpSevenZip.SharpSevenZipExtractor.SetLibraryPath(NativeLibPath);
+            using var extractor = new global::SharpSevenZip.SharpSevenZipExtractor(_archiveStream);
+            extractor.ExtractFile(0, _outputBuffer);
+        });
 
     internal static string NativeLibPath =>
         Path.Combine(
