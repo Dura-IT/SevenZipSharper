@@ -13,39 +13,34 @@ namespace SevenZipSharper.IntegrationTests;
 [TestOf(typeof(SevenZipExtractor))]
 public sealed class CancellationTests
 {
-    private byte[] _archiveBytes = Array.Empty<byte>();
+    private static readonly Lazy<Task<byte[]>> _archiveBytes = new(BuildArchiveAsync);
 
-    [OneTimeSetUp]
-    public async Task CreateArchive()
+    private static async Task<byte[]> BuildArchiveAsync()
     {
         var content = new byte[128 * 1024];
         new Random(0).NextBytes(content);
-        var entries = new[] { ("large.bin", (Stream)new MemoryStream(content)) };
-
-        using var archive = new MemoryStream();
-        using var compressor = new SevenZipCompressor(
+        return await IntegrationTestHelpers.BuildArchiveAsync(
             ArchiveFormat.SevenZip,
             CompressionParameters.Default,
-            NullLogger<SevenZipCompressor>.Instance
+            ("large.bin", content)
         );
-        await compressor.CompressAsync(entries, archive);
-        _archiveBytes = archive.ToArray();
     }
 
     [Test]
     public async Task ExtractAllAsync_PreCancelledToken_ThrowsOperationCanceledException()
     {
+        var archive = await _archiveBytes.Value;
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
 
         using var extractor = new SevenZipExtractor(
-            new MemoryStream(_archiveBytes),
+            new MemoryStream(archive),
             ArchiveFormat.SevenZip,
             NullLogger<SevenZipExtractor>.Instance
         );
         await extractor.OpenAsync();
 
-        var outDir = Path.Combine(Path.GetTempPath(), $"szs_cancel_{Guid.NewGuid():N}");
+        var outDir = IntegrationTestHelpers.UniqueTempDir("cancel_extractAll");
         try
         {
             await FluentActions
@@ -63,11 +58,12 @@ public sealed class CancellationTests
     [Test]
     public async Task ListEntriesAsync_PreCancelledToken_ThrowsOperationCanceledException()
     {
+        var archive = await _archiveBytes.Value;
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
 
         using var extractor = new SevenZipExtractor(
-            new MemoryStream(_archiveBytes),
+            new MemoryStream(archive),
             ArchiveFormat.SevenZip,
             NullLogger<SevenZipExtractor>.Instance
         );

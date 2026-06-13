@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -15,28 +16,27 @@ namespace SevenZipSharper.IntegrationTests;
 [TestOf(typeof(SevenZipExtractor))]
 public sealed class PasswordProtectionTests
 {
-    private byte[] _archiveBytes = System.Array.Empty<byte>();
+    private static readonly Lazy<byte[]> _archiveBytes = new(LoadFixture);
 
-    [OneTimeSetUp]
-    public void LoadFixture()
+    private static byte[] LoadFixture()
     {
         var assembly = Assembly.GetExecutingAssembly();
         var resourceName = "SevenZipSharper.IntegrationTests.Fixtures.password-protected.7z";
         using var stream =
             assembly.GetManifestResourceStream(resourceName)
-            ?? throw new System.InvalidOperationException(
+            ?? throw new InvalidOperationException(
                 $"Embedded resource '{resourceName}' not found."
             );
         using var ms = new MemoryStream();
         stream.CopyTo(ms);
-        _archiveBytes = ms.ToArray();
+        return ms.ToArray();
     }
 
     [Test]
     public async Task OpenAsync_WithCorrectPassword_Succeeds()
     {
         using var extractor = new SevenZipExtractor(
-            new MemoryStream(_archiveBytes),
+            new MemoryStream(_archiveBytes.Value),
             ArchiveFormat.SevenZip,
             NullLogger<SevenZipExtractor>.Instance
         );
@@ -50,7 +50,7 @@ public sealed class PasswordProtectionTests
     public async Task OpenAsync_WithWrongPassword_FailsOrExtractFails()
     {
         using var extractor = new SevenZipExtractor(
-            new MemoryStream(_archiveBytes),
+            new MemoryStream(_archiveBytes.Value),
             ArchiveFormat.SevenZip,
             NullLogger<SevenZipExtractor>.Instance
         );
@@ -59,10 +59,7 @@ public sealed class PasswordProtectionTests
         // but extraction will fail with DataError / CrcError.
         var openResult = await extractor.OpenAsync(password: "WrongPassword");
         if (openResult.IsFailed)
-        {
-            // Archive headers were also encrypted — open correctly fails.
             return;
-        }
 
         using var output = new MemoryStream();
         var entries = (await extractor.ListEntriesAsync()).Value;
@@ -77,7 +74,7 @@ public sealed class PasswordProtectionTests
     public async Task ExtractAsync_WithCorrectPassword_ContentIsReadable()
     {
         using var extractor = new SevenZipExtractor(
-            new MemoryStream(_archiveBytes),
+            new MemoryStream(_archiveBytes.Value),
             ArchiveFormat.SevenZip,
             NullLogger<SevenZipExtractor>.Instance
         );

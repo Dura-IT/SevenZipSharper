@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using AwesomeAssertions;
@@ -13,47 +12,25 @@ namespace SevenZipSharper.IntegrationTests;
 [TestOf(typeof(SevenZipExtractor))]
 public sealed class ExtractionIntegrationTests
 {
-    private string _tempDir = string.Empty;
-    private byte[] _archiveBytes = Array.Empty<byte>();
-
     private static readonly byte[] EntryContent = System.Text.Encoding.UTF8.GetBytes(
         "Hello from SevenZipSharper integration tests"
     );
 
-    [OneTimeSetUp]
-    public async Task CreateArchive()
-    {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"szs_extract_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
+    private static readonly Lazy<Task<byte[]>> _archiveBytes = new(BuildArchiveAsync);
 
-        var entries = new[] { ("test/hello.txt", (Stream)new MemoryStream(EntryContent)) };
-        using var output = new MemoryStream();
-        using var compressor = new SevenZipCompressor(
+    private static Task<byte[]> BuildArchiveAsync() =>
+        IntegrationTestHelpers.BuildArchiveAsync(
             ArchiveFormat.SevenZip,
             CompressionParameters.Default,
-            NullLogger<SevenZipCompressor>.Instance
+            ("test/hello.txt", EntryContent)
         );
-        var result = await compressor.CompressAsync(entries, output);
-        result
-            .IsSuccess.Should()
-            .BeTrue(
-                $"fixture archive creation must succeed, errors: {string.Join("; ", result.Errors)}"
-            );
-        _archiveBytes = output.ToArray();
-    }
-
-    [OneTimeTearDown]
-    public void Cleanup()
-    {
-        if (Directory.Exists(_tempDir))
-            Directory.Delete(_tempDir, recursive: true);
-    }
 
     [Test]
     public async Task OpenAsync_ValidArchive_ReturnsSuccessWithArchiveInfo()
     {
+        var archive = await _archiveBytes.Value;
         using var extractor = new SevenZipExtractor(
-            new MemoryStream(_archiveBytes),
+            new MemoryStream(archive),
             ArchiveFormat.SevenZip,
             NullLogger<SevenZipExtractor>.Instance
         );
@@ -67,8 +44,9 @@ public sealed class ExtractionIntegrationTests
     [Test]
     public async Task ListEntriesAsync_AfterOpen_ReturnsEntries()
     {
+        var archive = await _archiveBytes.Value;
         using var extractor = new SevenZipExtractor(
-            new MemoryStream(_archiveBytes),
+            new MemoryStream(archive),
             ArchiveFormat.SevenZip,
             NullLogger<SevenZipExtractor>.Instance
         );
@@ -85,27 +63,37 @@ public sealed class ExtractionIntegrationTests
     [Test]
     public async Task ExtractAllAsync_AfterOpen_WritesFilesWithCorrectContent()
     {
+        var archive = await _archiveBytes.Value;
         using var extractor = new SevenZipExtractor(
-            new MemoryStream(_archiveBytes),
+            new MemoryStream(archive),
             ArchiveFormat.SevenZip,
             NullLogger<SevenZipExtractor>.Instance
         );
         await extractor.OpenAsync();
-        var outDir = Path.Combine(_tempDir, "extractAll");
 
-        var result = await extractor.ExtractAllAsync(outDir);
+        var outDir = IntegrationTestHelpers.UniqueTempDir("extractAll");
+        try
+        {
+            var result = await extractor.ExtractAllAsync(outDir);
 
-        result.IsSuccess.Should().BeTrue();
-        var extracted = Path.Combine(outDir, "test", "hello.txt");
-        File.Exists(extracted).Should().BeTrue();
-        (await File.ReadAllBytesAsync(extracted)).Should().BeEquivalentTo(EntryContent);
+            result.IsSuccess.Should().BeTrue();
+            var extracted = Path.Combine(outDir, "test", "hello.txt");
+            File.Exists(extracted).Should().BeTrue();
+            (await File.ReadAllBytesAsync(extracted)).Should().BeEquivalentTo(EntryContent);
+        }
+        finally
+        {
+            if (Directory.Exists(outDir))
+                Directory.Delete(outDir, recursive: true);
+        }
     }
 
     [Test]
     public async Task ExtractEntryAsync_AfterOpen_WritesCorrectContent()
     {
+        var archive = await _archiveBytes.Value;
         using var extractor = new SevenZipExtractor(
-            new MemoryStream(_archiveBytes),
+            new MemoryStream(archive),
             ArchiveFormat.SevenZip,
             NullLogger<SevenZipExtractor>.Instance
         );
