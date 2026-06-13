@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -204,6 +205,61 @@ public sealed class ArchiveFormatDetectorTests
         await ArchiveFormatDetector.FromStreamAsync(stream);
 
         stream.Position.Should().Be(2);
+    }
+
+    #endregion
+
+    #region Argument validation
+
+    [Test]
+    public void FromExtension_ThrowsArgumentNull_WhenPathIsNull()
+    {
+        var act = () => ArchiveFormatDetector.FromExtension(null!);
+
+        act.Should().Throw<ArgumentNullException>().WithParameterName("path");
+    }
+
+    [Test]
+    public async Task FromStreamAsync_ThrowsArgumentNull_WhenStreamIsNull()
+    {
+        var act = async () => await ArchiveFormatDetector.FromStreamAsync(null!);
+
+        await act.Should().ThrowAsync<ArgumentNullException>().WithParameterName("stream");
+    }
+
+    [Test]
+    public async Task FromStreamAsync_ThrowsArgumentException_WhenStreamIsNotReadable()
+    {
+        await using var stream = new NonReadableStream();
+
+        var act = async () => await ArchiveFormatDetector.FromStreamAsync(stream);
+
+        await act.Should().ThrowAsync<ArgumentException>().WithParameterName("stream");
+    }
+
+    private sealed class NonReadableStream : Stream
+    {
+        public override bool CanRead => false;
+        public override bool CanSeek => false;
+        public override bool CanWrite => true;
+        public override long Length => 0;
+        public override long Position
+        {
+            get => 0;
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() { }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
+
+        public override long Seek(long offset, SeekOrigin origin) =>
+            throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) { }
     }
 
     #endregion

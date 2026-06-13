@@ -184,6 +184,29 @@ using var compressor = new SevenZipCompressor(ArchiveFormat.SevenZip, parameters
 await compressor.CompressAsync(entries, outputStream);
 ```
 
+### Detecting an unknown archive format
+
+When you don't know the format up front — accepting user-supplied files, sniffing an upload, etc. — use `ArchiveFormatDetector` to identify it before constructing the extractor.
+
+```csharp
+using SevenZipSharper.Detection;
+
+await using var fs = File.OpenRead(path);
+
+// Try magic-byte sniffing first (works for archives without an extension);
+// fall back to the extension when the bytes are inconclusive (e.g. ISO).
+var format = await ArchiveFormatDetector.FromStreamAsync(fs)
+             ?? ArchiveFormatDetector.FromExtension(path);
+
+if (format is null)
+    throw new InvalidOperationException("Unrecognised archive format.");
+
+using var extractor = new SevenZipExtractor(fs, format.Value, logger);
+await extractor.OpenAsync();
+```
+
+`FromStreamAsync` reads up to 262 bytes and restores the original position on seekable streams. Both methods return `null` for unknown formats rather than throwing; they throw `ArgumentNullException` / `ArgumentException` for invalid arguments.
+
 ### Dependency injection
 
 ```csharp

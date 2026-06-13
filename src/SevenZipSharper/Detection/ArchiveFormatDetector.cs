@@ -6,7 +6,26 @@ using System.Threading.Tasks;
 
 namespace SevenZipSharper.Detection;
 
-internal static class ArchiveFormatDetector
+/// <summary>
+/// Detects archive formats from a file extension or by sniffing magic bytes at the start of a stream.
+/// </summary>
+/// <remarks>
+/// Both detection methods return <see langword="null"/> when no known format matches; they do not throw
+/// for unrecognised input. <see cref="FromStreamAsync"/> reads up to 262 bytes from the stream and
+/// restores the original position when the stream is seekable.
+/// ISO detection requires reading 32 KB (CD001 signature at offset 32769) and is not attempted here;
+/// use <see cref="FromExtension"/> for ISO.
+/// </remarks>
+/// <example>
+/// <code>
+/// await using var fs = File.OpenRead("archive.bin");
+/// var format = await ArchiveFormatDetector.FromStreamAsync(fs)
+///              ?? ArchiveFormatDetector.FromExtension("archive.bin");
+/// if (format is null) throw new InvalidOperationException("Unknown archive format.");
+/// using var extractor = new SevenZipExtractor(fs, format.Value, logger);
+/// </code>
+/// </example>
+public static class ArchiveFormatDetector
 {
     private static readonly (ArchiveFormat Format, int Offset, byte[] Bytes)[] Signatures =
     [
@@ -55,8 +74,16 @@ internal static class ArchiveFormatDetector
         [".esd"] = ArchiveFormat.Wim,
     };
 
-    internal static ArchiveFormat? FromExtension(string path)
+    /// <summary>
+    /// Resolves an archive format from the extension of <paramref name="path"/>.
+    /// </summary>
+    /// <param name="path">File name or full path. Only the extension is consulted; the file does not need to exist.</param>
+    /// <returns>The matching format, or <see langword="null"/> if the extension is missing or unknown.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="path"/> is <see langword="null"/>.</exception>
+    public static ArchiveFormat? FromExtension(string path)
     {
+        ArgumentNullException.ThrowIfNull(path);
+
         var ext = Path.GetExtension(path);
         if (string.IsNullOrEmpty(ext))
             return null;
@@ -64,13 +91,24 @@ internal static class ArchiveFormatDetector
         return ExtensionMap.TryGetValue(ext, out var format) ? format : null;
     }
 
-    // ISO detection requires reading 32 KB into the stream (CD001 signature at offset 32769)
-    // and is not attempted here. Use FromExtension for ISO.
-    internal static async Task<ArchiveFormat?> FromStreamAsync(
+    /// <summary>
+    /// Sniffs the first 262 bytes of <paramref name="stream"/> for a known archive signature.
+    /// </summary>
+    /// <param name="stream">Readable stream positioned at the start of the candidate archive. The original position is restored on seekable streams.</param>
+    /// <param name="cancellationToken">Token to cancel the read.</param>
+    /// <returns>The matching format, or <see langword="null"/> if no signature matched (including empty streams).</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="stream"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="stream"/> is not readable.</exception>
+    /// <exception cref="OperationCanceledException">Thrown if <paramref name="cancellationToken"/> is triggered before the read completes.</exception>
+    public static async Task<ArchiveFormat?> FromStreamAsync(
         Stream stream,
         CancellationToken cancellationToken = default
     )
     {
+        ArgumentNullException.ThrowIfNull(stream);
+        if (!stream.CanRead)
+            throw new ArgumentException("Stream must be readable.", nameof(stream));
+
         var originalPosition = stream.CanSeek ? stream.Position : -1L;
 
         var buffer = new byte[BufferSize];
