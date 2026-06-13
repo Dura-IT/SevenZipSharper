@@ -234,10 +234,11 @@ Benchmarks compare extraction and compression performance against [SharpSevenZip
 
 ### Reading the numbers
 
-- **vs SharpSevenZip:** SevenZipSharper is within 2–10% on every measured workload. The remaining gap reflects the cost of our `Result<T>` wrapper layer, `IProgress<T>` reporting, and structured logging — features the legacy API doesn't provide.
-- **net10 vs net8 for SevenZipSharper:** essentially no difference on this hardware (Apple Silicon). Pick whichever TFM your downstream stack uses; performance won't be the deciding factor.
-- **net10 vs net8 for SharpSevenZip:** SharpSevenZip gains ~19% on 7z extraction moving to net10, suggesting they benefit from newer `[GeneratedComInterface]` marshalling. SevenZipSharper's handler implementation doesn't show the same gain — a candidate area for future optimisation.
+- **Compression** is dominated by the LZMA codec running inside the native `7z` library. COM marshalling is a small fraction of total time, so the differences between libraries and TFMs are small and mostly within noise.
+- **Extraction** is where the COM-interop story shows up. SevenZipSharper sits at the same ~256 µs on both net8 and net10 — we're at the performance floor for this workload, where the codec dominates and there's nothing left for the runtime to speed up. SharpSevenZip pays an extra ~60 µs of COM overhead on net8 (315 µs) and closes that gap on net10 (256 µs), matching us.
+- **Why SharpSevenZip moves and we don't:** SharpSevenZip uses legacy `[ComImport]` interfaces because its lineage targets .NET Framework and .NET Standard, where modern interop attributes aren't available. With `[ComImport]`, every COM call goes through the CLR's runtime-generated Runtime Callable Wrapper and built-in marshaller — and the .NET team has heavily optimised that path in net9 and net10. SevenZipSharper uses `[GeneratedComInterface]` / `[GeneratedComClass]` (net8+ only), where the marshalling code is emitted at compile time. That generated code was already at the floor on net8; the runtime improvements don't apply to it because we don't call into the runtime marshaller. The result: we've been at net10's perf level since net8.
 - **Allocations:** SevenZipSharper allocates ~90–110× more than SharpSevenZip per operation. Most of this is the trade we make for ergonomic async APIs (`Result<T>`, `Task`, `IProgress<T>`). For most callers this is invisible; for tight loops processing thousands of small archives, it's a measurable cost worth knowing.
+- **TFM choice:** for this library on this hardware, pick whichever TFM your downstream stack uses — performance won't be the deciding factor.
 
 Results on x64 hardware and Linux/Windows may differ — the relative ordering should be similar but absolute timings will shift with codec performance.
 
