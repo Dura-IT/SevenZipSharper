@@ -10,7 +10,8 @@ using SevenZipSharper.Compression;
 namespace SevenZipSharper.IntegrationTests;
 
 [TestFixture]
-public class ExtractionIntegrationTests
+[TestOf(typeof(SevenZipExtractor))]
+public sealed class ExtractionIntegrationTests
 {
     private string _tempDir = string.Empty;
     private byte[] _archiveBytes = Array.Empty<byte>();

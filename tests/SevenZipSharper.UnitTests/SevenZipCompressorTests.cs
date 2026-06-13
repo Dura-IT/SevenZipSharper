@@ -14,7 +14,7 @@ using SevenZipSharper.Interop.Streams;
 namespace SevenZipSharper.UnitTests;
 
 [TestOf(typeof(SevenZipCompressor))]
-public class SevenZipCompressorTests
+public sealed class SevenZipCompressorTests
 {
     private static SevenZipCompressor CreateCompressor(
         IOutArchive? archive = null,

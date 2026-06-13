@@ -10,7 +10,7 @@ using SevenZipSharper.Compression;
 namespace SevenZipSharper.UnitTests.DependencyInjection;
 
 [TestOf(typeof(SevenZipSharperServiceCollectionExtensions))]
-public class SevenZipSharperServiceCollectionExtensionsTests
+public sealed class SevenZipSharperServiceCollectionExtensionsTests
 {
     [Test]
     public void AddSevenZipSharper_RegistersExtractorFactory()

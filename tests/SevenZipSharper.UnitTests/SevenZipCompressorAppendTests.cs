@@ -14,7 +14,7 @@ using SevenZipSharper.UnitTests.Compression;
 namespace SevenZipSharper.UnitTests;
 
 [TestOf(typeof(SevenZipCompressor))]
-public class SevenZipCompressorAppendTests
+public sealed class SevenZipCompressorAppendTests
 {
     private static SevenZipCompressor CreateCompressor(
         IOutArchive? archive = null,

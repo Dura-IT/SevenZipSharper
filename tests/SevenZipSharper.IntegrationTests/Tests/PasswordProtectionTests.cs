@@ -12,7 +12,8 @@ namespace SevenZipSharper.IntegrationTests;
 /// managed→native <c>out string</c> marshalling on non-Windows platforms.
 /// </summary>
 [TestFixture]
-public class PasswordProtectionTests
+[TestOf(typeof(SevenZipExtractor))]
+public sealed class PasswordProtectionTests
 {
     private byte[] _archiveBytes = System.Array.Empty<byte>();
 

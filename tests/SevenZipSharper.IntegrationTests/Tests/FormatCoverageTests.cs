@@ -8,7 +8,8 @@ using SevenZipSharper.Compression;
 namespace SevenZipSharper.IntegrationTests;
 
 [TestFixture]
-public class FormatCoverageTests
+[TestOf(typeof(SevenZipCompressor))]
+public sealed class FormatCoverageTests
 {
     private static readonly byte[] Content = System.Text.Encoding.UTF8.GetBytes(
         "Format coverage test content"

@@ -13,7 +13,7 @@ using SevenZipSharper.Interop.Streams;
 namespace SevenZipSharper.UnitTests.Compression;
 
 [TestOf(typeof(MultiVolumeCompressionHandler))]
-public class MultiVolumeCompressionHandlerTests
+public sealed class MultiVolumeCompressionHandlerTests
 {
     private static MultiVolumeCompressionHandler CreateHandler(
         Func<int, Stream>? factory = null,

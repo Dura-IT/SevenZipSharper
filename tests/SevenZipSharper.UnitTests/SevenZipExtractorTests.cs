@@ -14,7 +14,7 @@ using SevenZipSharper.Interop.Streams;
 namespace SevenZipSharper.UnitTests;
 
 [TestOf(typeof(SevenZipExtractor))]
-public class SevenZipExtractorTests
+public sealed class SevenZipExtractorTests
 {
     private static SevenZipExtractor CreateExtractor(IInArchive? archive = null) =>
         new SevenZipExtractor(

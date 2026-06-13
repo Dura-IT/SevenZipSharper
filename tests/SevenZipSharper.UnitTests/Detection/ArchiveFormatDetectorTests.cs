@@ -8,7 +8,7 @@ using SevenZipSharper.Detection;
 namespace SevenZipSharper.UnitTests.Detection;
 
 [TestOf(typeof(ArchiveFormatDetector))]
-public class ArchiveFormatDetectorTests
+public sealed class ArchiveFormatDetectorTests
 {
     #region FromExtension
 

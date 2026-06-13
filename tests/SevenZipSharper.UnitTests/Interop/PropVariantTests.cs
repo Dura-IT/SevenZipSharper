@@ -6,7 +6,7 @@ using SevenZipSharper.Interop;
 namespace SevenZipSharper.UnitTests.Interop;
 
 [TestOf(typeof(PropVariant))]
-public class PropVariantTests
+public sealed class PropVariantTests
 {
     [Test]
     public void IsEmpty_True_ForDefault()

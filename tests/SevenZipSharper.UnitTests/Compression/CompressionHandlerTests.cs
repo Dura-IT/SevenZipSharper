@@ -24,7 +24,7 @@ file sealed class SynchronousProgress<T> : IProgress<T>
 }
 
 [TestOf(typeof(CompressionHandler))]
-public class CompressionHandlerTests
+public sealed class CompressionHandlerTests
 {
     private static (string EntryPath, Stream Data) MakeEntry(string path, byte[]? content = null)
     {

@@ -7,7 +7,7 @@ using SevenZipSharper.Interop.Archive;
 namespace SevenZipSharper.UnitTests.Extraction;
 
 [TestOf(typeof(ArchiveOpenHandler))]
-public class ArchiveOpenHandlerTests
+public sealed class ArchiveOpenHandlerTests
 {
     [Test]
     public void GetPassword_ReturnsPassword_AndOk_WhenPasswordProvided()

@@ -10,7 +10,8 @@ using SevenZipSharper.Compression;
 namespace SevenZipSharper.IntegrationTests;
 
 [TestFixture]
-public class CompressionMatrixTests
+[TestOf(typeof(SevenZipCompressor))]
+public sealed class CompressionMatrixTests
 {
     private static readonly byte[] CompressibleContent = BuildCompressibleContent();
 

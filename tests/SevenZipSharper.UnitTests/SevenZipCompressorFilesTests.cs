@@ -15,7 +15,7 @@ using SevenZipSharper.Interop.Streams;
 namespace SevenZipSharper.UnitTests;
 
 [TestOf(typeof(SevenZipCompressor))]
-public class SevenZipCompressorFilesTests
+public sealed class SevenZipCompressorFilesTests
 {
     private string _tempDir = string.Empty;
 

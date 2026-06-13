@@ -7,7 +7,7 @@ using SevenZipSharper.Interop;
 namespace SevenZipSharper.UnitTests.Interop;
 
 [TestOf(typeof(NativeLibraryLoader))]
-public class NativeLibraryLoaderTests
+public sealed class NativeLibraryLoaderTests
 {
     [Test]
     public void GetRuntimeIdentifier_ReturnsValidRid()

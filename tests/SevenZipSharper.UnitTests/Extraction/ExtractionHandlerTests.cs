@@ -39,7 +39,7 @@ file sealed class SynchronousProgress<T> : IProgress<T>
 }
 
 [TestOf(typeof(ExtractionHandler))]
-public class ExtractionHandlerTests
+public sealed class ExtractionHandlerTests
 {
     private static ExtractionHandler CreateHandler(
         Func<uint, (ISequentialOutStream? Stream, string EntryPath)>? streamProvider = null,

@@ -9,7 +9,7 @@ using SevenZipSharper.Interop.Streams;
 namespace SevenZipSharper.UnitTests.Interop.Streams;
 
 [TestOf(typeof(OutStreamAdapter))]
-public class OutStreamAdapterTests
+public sealed class OutStreamAdapterTests
 {
     [Test]
     public void Write_WritesDataToUnderlyingStream()

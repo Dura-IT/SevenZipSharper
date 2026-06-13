@@ -8,7 +8,7 @@ using SevenZipSharper.Interop;
 namespace SevenZipSharper.UnitTests.Interop;
 
 [TestOf(typeof(SevenZipLib))]
-public class SevenZipLibTests
+public sealed class SevenZipLibTests
 {
     private static IEnumerable<Guid> AllFormatGuids()
     {

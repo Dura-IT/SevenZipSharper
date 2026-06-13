@@ -9,7 +9,8 @@ using SevenZipSharper.Compression;
 namespace SevenZipSharper.IntegrationTests;
 
 [TestFixture]
-public class CompressionRoundTripTests
+[TestOf(typeof(SevenZipCompressor))]
+public sealed class CompressionRoundTripTests
 {
     [Test]
     public async Task CompressAsync_ThenExtract_ContentMatchesOriginal()

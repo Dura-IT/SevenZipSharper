@@ -10,7 +10,8 @@ using SevenZipSharper.Compression;
 namespace SevenZipSharper.IntegrationTests;
 
 [TestFixture]
-public class CancellationTests
+[TestOf(typeof(SevenZipExtractor))]
+public sealed class CancellationTests
 {
     private byte[] _archiveBytes = Array.Empty<byte>();
 

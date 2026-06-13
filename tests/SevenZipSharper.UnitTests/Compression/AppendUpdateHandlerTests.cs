@@ -14,7 +14,7 @@ using SevenZipSharper.Interop.Streams;
 namespace SevenZipSharper.UnitTests.Compression;
 
 [TestOf(typeof(AppendUpdateHandler))]
-public class AppendUpdateHandlerTests
+public sealed class AppendUpdateHandlerTests
 {
     private static AppendUpdateHandler CreateHandler(
         FakeInArchiveForAppend? existingArchive = null,

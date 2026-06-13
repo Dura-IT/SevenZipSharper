@@ -7,7 +7,7 @@ using SevenZipSharper.Interop;
 namespace SevenZipSharper.UnitTests.Interop;
 
 [TestOf(typeof(SevenZipWideString))]
-public class SevenZipWideStringTests
+public sealed class SevenZipWideStringTests
 {
     [Test]
     public void Alloc_Read_RoundTrip_EmptyString()

@@ -27,9 +27,10 @@ internal static class ArchiveFormatDetector
     // Covers all signatures above: TAR offset 257 + 5 bytes = 262.
     private const int BufferSize = 262;
 
-    private static readonly Dictionary<string, ArchiveFormat> ExtensionMap = new(
-        System.StringComparer.OrdinalIgnoreCase
-    )
+    private static readonly Dictionary<string, ArchiveFormat> ExtensionMap = new Dictionary<
+        string,
+        ArchiveFormat
+    >(StringComparer.OrdinalIgnoreCase)
     {
         [".7z"] = ArchiveFormat.SevenZip,
         [".zip"] = ArchiveFormat.Zip,

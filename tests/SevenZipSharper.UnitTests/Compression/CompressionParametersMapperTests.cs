@@ -6,7 +6,7 @@ using SevenZipSharper.Compression;
 namespace SevenZipSharper.UnitTests.Compression;
 
 [TestOf(typeof(CompressionParametersMapper))]
-public class CompressionParametersMapperTests
+public sealed class CompressionParametersMapperTests
 {
     [Test]
     public void ToSetProperties_Default_ProducesExpectedKeys()

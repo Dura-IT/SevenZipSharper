@@ -8,7 +8,7 @@ using SevenZipSharper.Interop;
 namespace SevenZipSharper.UnitTests.Extraction;
 
 [TestOf(typeof(FileEntryStream))]
-public class FileEntryStreamTests
+public sealed class FileEntryStreamTests
 {
     private string _tempDir = string.Empty;
 
