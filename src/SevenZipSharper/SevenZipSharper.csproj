@@ -4,7 +4,7 @@
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
-    <Version>0.1.1</Version>
+    <Version>0.2.0</Version>
     <PackageOutputPath>$(MSBuildThisFileDirectory)../../artifacts/packages/</PackageOutputPath>
     <PackageId>DuraIT.SevenZipSharper</PackageId>
     <Authors>Ben de Bruijn</Authors>
