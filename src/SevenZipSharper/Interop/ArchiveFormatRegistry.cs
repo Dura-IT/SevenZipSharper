@@ -10,17 +10,17 @@ internal static class ArchiveFormatRegistry
         Guid
     >
     {
-        [ArchiveFormat.SevenZip] = SevenZipLib.SevenZipClassId,
-        [ArchiveFormat.Zip] = SevenZipLib.ZipClassId,
-        [ArchiveFormat.BZip2] = SevenZipLib.BZip2ClassId,
-        [ArchiveFormat.Arj] = SevenZipLib.ArjClassId,
-        [ArchiveFormat.Lzh] = SevenZipLib.LzhClassId,
-        [ArchiveFormat.Cab] = SevenZipLib.CabClassId,
-        [ArchiveFormat.Iso] = SevenZipLib.IsoClassId,
-        [ArchiveFormat.GZip] = SevenZipLib.GZipClassId,
-        [ArchiveFormat.Tar] = SevenZipLib.TarClassId,
-        [ArchiveFormat.Xz] = SevenZipLib.XzClassId,
-        [ArchiveFormat.Wim] = SevenZipLib.WimClassId,
+        [ArchiveFormat.SevenZip] = ArchiveClassIds.SevenZip,
+        [ArchiveFormat.Zip] = ArchiveClassIds.Zip,
+        [ArchiveFormat.BZip2] = ArchiveClassIds.BZip2,
+        [ArchiveFormat.Arj] = ArchiveClassIds.Arj,
+        [ArchiveFormat.Lzh] = ArchiveClassIds.Lzh,
+        [ArchiveFormat.Cab] = ArchiveClassIds.Cab,
+        [ArchiveFormat.Iso] = ArchiveClassIds.Iso,
+        [ArchiveFormat.GZip] = ArchiveClassIds.GZip,
+        [ArchiveFormat.Tar] = ArchiveClassIds.Tar,
+        [ArchiveFormat.Xz] = ArchiveClassIds.Xz,
+        [ArchiveFormat.Wim] = ArchiveClassIds.Wim,
     };
 
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="format"/> is not a recognised value.</exception>

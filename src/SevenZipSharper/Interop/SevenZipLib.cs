@@ -5,6 +5,9 @@ using System.Runtime.InteropServices.Marshalling;
 
 namespace SevenZipSharper.Interop;
 
+[ExcludeFromCodeCoverage(
+    Justification = "Thin P/Invoke bridge to the native 7-Zip CreateObject entry point; requires a real native library load to exercise and is covered end-to-end by the integration test matrix. Format CLSIDs live in ArchiveClassIds, which is unit-tested."
+)]
 internal static partial class SevenZipLib
 {
     [LibraryImport(NativeLibraryLoader.LibraryName, EntryPoint = "CreateObject")]
@@ -34,20 +37,4 @@ internal static partial class SevenZipLib
         return ComInterfaceMarshaller<T>.ConvertToManaged((void*)ptr)
             ?? throw new InvalidOperationException("CreateObject returned null.");
     }
-
-    // COM class IDs for 7-Zip archive handler objects.
-    // Pattern: 23170F69-40C1-278A-1000-000110{formatId}0000
-    internal static readonly Guid SevenZipClassId = new Guid(
-        "23170F69-40C1-278A-1000-000110070000"
-    );
-    internal static readonly Guid ZipClassId = new Guid("23170F69-40C1-278A-1000-000110010000");
-    internal static readonly Guid BZip2ClassId = new Guid("23170F69-40C1-278A-1000-000110020000");
-    internal static readonly Guid ArjClassId = new Guid("23170F69-40C1-278A-1000-000110040000");
-    internal static readonly Guid LzhClassId = new Guid("23170F69-40C1-278A-1000-000110060000");
-    internal static readonly Guid CabClassId = new Guid("23170F69-40C1-278A-1000-000110080000");
-    internal static readonly Guid IsoClassId = new Guid("23170F69-40C1-278A-1000-0001100E0000");
-    internal static readonly Guid GZipClassId = new Guid("23170F69-40C1-278A-1000-000110EF0000");
-    internal static readonly Guid TarClassId = new Guid("23170F69-40C1-278A-1000-000110EE0000");
-    internal static readonly Guid XzClassId = new Guid("23170F69-40C1-278A-1000-000110F80000");
-    internal static readonly Guid WimClassId = new Guid("23170F69-40C1-278A-1000-000110E60000");
 }
