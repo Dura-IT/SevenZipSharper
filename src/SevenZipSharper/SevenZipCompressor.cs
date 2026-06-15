@@ -227,6 +227,12 @@ public sealed class SevenZipCompressor : IDisposable
     /// <param name="progress">Optional progress sink; receives a snapshot after each block of bytes is processed.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
     /// <returns>A successful result on completion, or a failed result if the operation fails or the format does not support append.</returns>
+    /// <remarks>
+    /// If the existing archive is encrypted, <see cref="CompressionParameters.EncryptionPassword"/>
+    /// must match the password the existing archive was created with. A mismatched password
+    /// produces an archive whose existing and appended entries cannot be decrypted with the
+    /// same password — there is no detection for this case.
+    /// </remarks>
     /// <exception cref="ObjectDisposedException">Thrown if the compressor has been disposed.</exception>
     public async Task<Result> AppendAsync(
         Stream existingArchive,
@@ -237,13 +243,9 @@ public sealed class SevenZipCompressor : IDisposable
     )
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
-        var validation = _parameters.Validate();
+        var validation = ValidateAll();
         if (validation.IsFailed)
             return validation;
-
-        var compatibility = ValidateFormatCompatibility();
-        if (compatibility.IsFailed)
-            return compatibility;
 
         var newEntryList = newEntries.ToList();
 
@@ -304,13 +306,9 @@ public sealed class SevenZipCompressor : IDisposable
         CancellationToken cancellationToken = default
     )
     {
-        var validation = _parameters.Validate();
+        var validation = ValidateAll();
         if (validation.IsFailed)
             return Task.FromResult(validation);
-
-        var compatibility = ValidateFormatCompatibility();
-        if (compatibility.IsFailed)
-            return Task.FromResult(compatibility);
 
         return AppendCoreAsync(
             inArchive,
@@ -342,13 +340,9 @@ public sealed class SevenZipCompressor : IDisposable
         bool ownsEntryStreams = false
     )
     {
-        var validation = _parameters.Validate();
+        var validation = ValidateAll();
         if (validation.IsFailed)
             return validation;
-
-        var compatibility = ValidateFormatCompatibility();
-        if (compatibility.IsFailed)
-            return compatibility;
 
         if (_applyNativeParameters)
         {
@@ -389,13 +383,9 @@ public sealed class SevenZipCompressor : IDisposable
         CancellationToken cancellationToken
     )
     {
-        var validation = _parameters.Validate();
+        var validation = ValidateAll();
         if (validation.IsFailed)
             return validation;
-
-        var compatibility = ValidateFormatCompatibility();
-        if (compatibility.IsFailed)
-            return compatibility;
 
         if (_applyNativeParameters)
         {
@@ -486,6 +476,15 @@ public sealed class SevenZipCompressor : IDisposable
             },
             cancellationToken
         );
+
+    private Result ValidateAll()
+    {
+        var paramResult = _parameters.Validate();
+        if (paramResult.IsFailed)
+            return paramResult;
+
+        return ValidateFormatCompatibility();
+    }
 
     private Result ValidateFormatCompatibility()
     {
