@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -35,6 +36,9 @@ public sealed class SevenZipCompressor : IDisposable
     /// <param name="format">Archive format to create.</param>
     /// <param name="parameters">Compression parameters applied to the archive.</param>
     /// <param name="logger">Logger for diagnostic output.</param>
+    [ExcludeFromCodeCoverage(
+        Justification = "Loads the native 7-Zip library and creates a native COM archive object; exercised end-to-end by the integration test matrix."
+    )]
     public SevenZipCompressor(
         ArchiveFormat format,
         CompressionParameters parameters,
@@ -73,6 +77,9 @@ public sealed class SevenZipCompressor : IDisposable
     /// <param name="parameters">Compression parameters applied to the archive.</param>
     /// <param name="logger">Logger for diagnostic output.</param>
     /// <returns>A successful result containing the compressor, or a failed result with the error message.</returns>
+    [ExcludeFromCodeCoverage(
+        Justification = "Thin try/catch around the native-constructing public constructor; exercised end-to-end by the integration test matrix."
+    )]
     public static Result<SevenZipCompressor> Create(
         ArchiveFormat format,
         CompressionParameters parameters,
@@ -540,6 +547,9 @@ public sealed class SevenZipCompressor : IDisposable
         return Result.Ok();
     }
 
+    [ExcludeFromCodeCoverage(
+        Justification = "Performs unsafe pointer pinning and raw-pointer ISetProperties marshalling; unit-testing would require mocking the unmanaged boundary. Exercised by every non-default-parameter integration test on all three OSes."
+    )]
     private Result ApplyParametersTo(IOutArchive archive)
     {
         // Zip does not support LZMA2 — fall back to Deflate.
@@ -641,8 +651,14 @@ public sealed class SevenZipCompressor : IDisposable
 
         public override void Flush() => _inner?.Flush();
 
+        [ExcludeFromCodeCoverage(
+            Justification = "Defensive throw on a read-only Stream override; never invoked because LazyFileStream is only consumed by 7-Zip's input-stream path."
+        )]
         public override void SetLength(long value) => throw new NotSupportedException();
 
+        [ExcludeFromCodeCoverage(
+            Justification = "Defensive throw on a read-only Stream override; never invoked because LazyFileStream is only consumed by 7-Zip's input-stream path."
+        )]
         public override void Write(byte[] buffer, int offset, int count) =>
             throw new NotSupportedException();
 

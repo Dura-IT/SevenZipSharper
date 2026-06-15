@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -39,6 +40,9 @@ public sealed class SevenZipExtractor : IDisposable
     /// <param name="stream">Readable stream positioned at the start of the archive.</param>
     /// <param name="format">Archive format of the stream.</param>
     /// <param name="logger">Logger for diagnostic output.</param>
+    [ExcludeFromCodeCoverage(
+        Justification = "Loads the native 7-Zip library and creates a native COM archive object; exercised end-to-end by the integration test matrix."
+    )]
     public SevenZipExtractor(Stream stream, ArchiveFormat format, ILogger<SevenZipExtractor> logger)
     {
         NativeLibraryLoader.Register();
@@ -71,6 +75,9 @@ public sealed class SevenZipExtractor : IDisposable
     /// <param name="format">Archive format of the stream.</param>
     /// <param name="logger">Logger for diagnostic output.</param>
     /// <returns>A successful result containing the extractor, or a failed result with the error message.</returns>
+    [ExcludeFromCodeCoverage(
+        Justification = "Thin try/catch around the native-constructing public constructor; exercised end-to-end by the integration test matrix."
+    )]
     public static Result<SevenZipExtractor> Create(
         Stream stream,
         ArchiveFormat format,
