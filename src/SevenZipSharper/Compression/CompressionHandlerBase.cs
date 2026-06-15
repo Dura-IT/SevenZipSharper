@@ -15,6 +15,8 @@ internal abstract class CompressionHandlerBase
     private readonly IProgress<CompressionProgress>? _progress;
     private readonly CancellationToken _cancellationToken;
     private readonly bool _ownsEntryStreams;
+    private readonly uint _existingCount;
+    private readonly string? _password;
 
     private ulong _totalBytes;
     private int _completedEntries;
@@ -24,13 +26,36 @@ internal abstract class CompressionHandlerBase
         IReadOnlyList<(string EntryPath, Stream Data)> entries,
         IProgress<CompressionProgress>? progress,
         CancellationToken cancellationToken,
-        bool ownsEntryStreams = false
+        bool ownsEntryStreams = false,
+        uint existingCount = 0,
+        string? password = null
     )
     {
         _entries = entries;
         _progress = progress;
         _cancellationToken = cancellationToken;
         _ownsEntryStreams = ownsEntryStreams;
+        _existingCount = existingCount;
+        _password = password;
+    }
+
+    protected virtual int OnGetExistingUpdateItemInfo(
+        uint index,
+        nint newData,
+        nint newProperties,
+        nint indexInArchive
+    ) => HResult.Ok;
+
+    protected virtual int OnGetExistingProperty(
+        uint index,
+        ItemPropId propId,
+        ref PropVariant value
+    ) => HResult.Ok;
+
+    protected virtual int OnGetExistingStream(uint index, out ISequentialInStream? inStream)
+    {
+        inStream = null;
+        return HResult.Ok;
     }
 
     protected int OnSetTotal(ulong total)
@@ -48,9 +73,10 @@ internal abstract class CompressionHandlerBase
             return HResult.Ok;
 
         var bytesProcessed = (ulong)Marshal.ReadInt64(completeValue);
+        var newIndex = _completedEntries - (int)_existingCount;
         var entryPath =
-            _completedEntries < _entries.Count
-                ? _entries[_completedEntries].EntryPath
+            newIndex >= 0 && newIndex < _entries.Count
+                ? _entries[newIndex].EntryPath
                 : string.Empty;
 
         _progress?.Report(
@@ -65,13 +91,16 @@ internal abstract class CompressionHandlerBase
         return HResult.Ok;
     }
 
-    protected static int OnGetUpdateItemInfo(
+    protected int OnGetUpdateItemInfo(
         uint index,
         nint newData,
         nint newProperties,
         nint indexInArchive
     )
     {
+        if (index < _existingCount)
+            return OnGetExistingUpdateItemInfo(index, newData, newProperties, indexInArchive);
+
         if (newData != nint.Zero)
             Marshal.WriteInt32(newData, 1);
         if (newProperties != nint.Zero)
@@ -83,12 +112,17 @@ internal abstract class CompressionHandlerBase
 
     protected int OnGetProperty(uint index, ItemPropId propId, ref PropVariant value)
     {
-        if (index >= (uint)_entries.Count)
+        value.Clear();
+
+        if (index < _existingCount)
+            return OnGetExistingProperty(index, propId, ref value);
+
+        var adjustedIndex = (int)(index - _existingCount);
+        if (adjustedIndex >= _entries.Count)
             return HResult.InvalidArg;
 
-        var (entryPath, data) = _entries[(int)index];
+        var (entryPath, data) = _entries[adjustedIndex];
 
-        value.Clear();
         value = propId switch
         {
             ItemPropId.Path => PropVariant.FromString(entryPath),
@@ -109,10 +143,14 @@ internal abstract class CompressionHandlerBase
         _activeEntryStream = null;
         inStream = null;
 
-        if (index >= (uint)_entries.Count)
+        if (index < _existingCount)
+            return OnGetExistingStream(index, out inStream);
+
+        var adjustedIndex = (int)(index - _existingCount);
+        if (adjustedIndex >= _entries.Count)
             return HResult.InvalidArg;
 
-        var data = _entries[(int)index].Data;
+        var data = _entries[adjustedIndex].Data;
         if (data.CanSeek)
             data.Seek(0, SeekOrigin.Begin);
         inStream = new InStreamAdapter(data);
@@ -126,6 +164,20 @@ internal abstract class CompressionHandlerBase
     protected int OnSetOperationResult(OperationResult result)
     {
         _completedEntries++;
+        return HResult.Ok;
+    }
+
+    protected int OnGetPassword(out int passwordIsDefined, out string password)
+    {
+        if (_password is null)
+        {
+            passwordIsDefined = 0;
+            password = string.Empty;
+            return HResult.Ok;
+        }
+
+        passwordIsDefined = 1;
+        password = _password;
         return HResult.Ok;
     }
 }

@@ -232,6 +232,37 @@ public sealed class CompressionHandlerTests
     }
 
     [Test]
+    public void CryptoGetTextPassword2_WithPasswordSet_ReturnsPasswordWithIsDefinedOne()
+    {
+        var handler = new CompressionHandler(
+            new[] { MakeEntry("file.txt") },
+            null,
+            CancellationToken.None,
+            password: "hunter2"
+        );
+        ICryptoGetTextPassword2 crypto = handler;
+
+        var hr = crypto.CryptoGetTextPassword2(out var isDefined, out var password);
+
+        hr.Should().Be(HResult.Ok);
+        isDefined.Should().Be(1);
+        password.Should().Be("hunter2");
+    }
+
+    [Test]
+    public void CryptoGetTextPassword2_WithoutPassword_ReturnsZeroAndEmptyString()
+    {
+        var handler = CreateHandler();
+        ICryptoGetTextPassword2 crypto = handler;
+
+        var hr = crypto.CryptoGetTextPassword2(out var isDefined, out var password);
+
+        hr.Should().Be(HResult.Ok);
+        isDefined.Should().Be(0);
+        password.Should().Be(string.Empty);
+    }
+
+    [Test]
     public void GetStream_DisposesEntryStream_WhenOwnsEntryStreams()
     {
         var first = new TrackingStream(new byte[] { 1, 2, 3 });

@@ -118,7 +118,10 @@ public record CompressionParameters
         if (ThreadCount.HasValue && ThreadCount.Value < 1)
             return Result.Fail("ThreadCount must be 1 or greater.");
 
-        if (EncryptHeaders && string.IsNullOrEmpty(EncryptionPassword))
+        if (EncryptionPassword is not null && EncryptionPassword.Length == 0)
+            return Result.Fail("EncryptionPassword must not be empty. Use null for no encryption.");
+
+        if (EncryptHeaders && EncryptionPassword is null)
             return Result.Fail("EncryptHeaders requires EncryptionPassword to be set.");
 
         if (DictionarySize.HasValue)

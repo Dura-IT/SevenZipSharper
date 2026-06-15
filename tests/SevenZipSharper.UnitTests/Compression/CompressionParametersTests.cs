@@ -79,6 +79,17 @@ public sealed class CompressionParametersTests
     }
 
     [Test]
+    public void Validate_Fails_WhenEncryptionPasswordIsEmpty()
+    {
+        var p = CompressionParameters.Default with { EncryptionPassword = string.Empty };
+
+        var result = p.Validate();
+
+        result.IsFailed.Should().BeTrue();
+        result.Errors.Should().Contain(e => e.Message.Contains("EncryptionPassword"));
+    }
+
+    [Test]
     public void Validate_ReturnsOk_WhenEncryptHeadersSetWithPassword()
     {
         var p = CompressionParameters.Default with

@@ -122,6 +122,43 @@ public sealed class MultiVolumeCompressionHandlerTests
     }
 
     [Test]
+    public void CryptoGetTextPassword2_WithPasswordSet_ReturnsPasswordWithIsDefinedOne()
+    {
+        IReadOnlyList<(string, Stream)> entries = new[]
+        {
+            ("a.txt", (Stream)new MemoryStream(new byte[] { 1 })),
+        };
+        var handler = new MultiVolumeCompressionHandler(
+            entries,
+            null,
+            _ => new MemoryStream(),
+            1024,
+            CancellationToken.None,
+            password: "hunter2"
+        );
+        ICryptoGetTextPassword2 crypto = handler;
+
+        var hr = crypto.CryptoGetTextPassword2(out var isDefined, out var password);
+
+        hr.Should().Be(HResult.Ok);
+        isDefined.Should().Be(1);
+        password.Should().Be("hunter2");
+    }
+
+    [Test]
+    public void CryptoGetTextPassword2_WithoutPassword_ReturnsZeroAndEmptyString()
+    {
+        var handler = CreateHandler();
+        ICryptoGetTextPassword2 crypto = handler;
+
+        var hr = crypto.CryptoGetTextPassword2(out var isDefined, out var password);
+
+        hr.Should().Be(HResult.Ok);
+        isDefined.Should().Be(0);
+        password.Should().Be(string.Empty);
+    }
+
+    [Test]
     public void InheritedSetCompleted_ReturnsAbort_WhenCancelled()
     {
         using var cts = new CancellationTokenSource();

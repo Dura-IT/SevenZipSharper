@@ -66,6 +66,16 @@ internal static class SevenZipCompressorLog
         int newCount
     ) => _appendCompleted(logger, format, existingCount, newCount, null);
 
+    private static readonly Action<ILogger, int, Exception?> _setPropertiesFailed =
+        LoggerMessage.Define<int>(
+            LogLevel.Error,
+            new EventId(206, nameof(SetPropertiesFailed)),
+            "Failed to apply archive properties (HRESULT: 0x{HResult:X8})"
+        );
+
     public static void MultiVolumeCompleted(ILogger logger, ArchiveFormat format, uint count) =>
         _multiVolumeCompleted(logger, format, count, null);
+
+    public static void SetPropertiesFailed(ILogger logger, int hResult) =>
+        _setPropertiesFailed(logger, hResult, null);
 }

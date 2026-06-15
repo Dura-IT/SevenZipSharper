@@ -138,6 +138,39 @@ public sealed class AppendUpdateHandlerTests
     }
 
     [Test]
+    public void CryptoGetTextPassword2_WithPasswordSet_ReturnsPasswordWithIsDefinedOne()
+    {
+        var handler = new AppendUpdateHandler(
+            new FakeInArchiveForAppend(1),
+            existingCount: 1,
+            newEntries: new[] { ("new.txt", (Stream)new MemoryStream(new byte[] { 1 })) },
+            progress: null,
+            cancellationToken: CancellationToken.None,
+            password: "hunter2"
+        );
+        ICryptoGetTextPassword2 crypto = handler;
+
+        var hr = crypto.CryptoGetTextPassword2(out var isDefined, out var password);
+
+        hr.Should().Be(HResult.Ok);
+        isDefined.Should().Be(1);
+        password.Should().Be("hunter2");
+    }
+
+    [Test]
+    public void CryptoGetTextPassword2_WithoutPassword_ReturnsZeroAndEmptyString()
+    {
+        var handler = CreateHandler();
+        ICryptoGetTextPassword2 crypto = handler;
+
+        var hr = crypto.CryptoGetTextPassword2(out var isDefined, out var password);
+
+        hr.Should().Be(HResult.Ok);
+        isDefined.Should().Be(0);
+        password.Should().Be(string.Empty);
+    }
+
+    [Test]
     public void SetCompleted_ReturnsAbort_WhenCancelled()
     {
         using var cts = new CancellationTokenSource();

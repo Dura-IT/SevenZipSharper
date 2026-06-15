@@ -13,7 +13,8 @@ namespace SevenZipSharper.Compression;
 [GeneratedComClass]
 internal sealed partial class MultiVolumeCompressionHandler
     : CompressionHandlerBase,
-        IArchiveUpdateCallback2
+        IArchiveUpdateCallback2,
+        ICryptoGetTextPassword2
 {
     private readonly Func<int, Stream> _volumeStreamFactory;
     private readonly ulong _maxVolumeBytes;
@@ -23,9 +24,10 @@ internal sealed partial class MultiVolumeCompressionHandler
         IProgress<CompressionProgress>? progress,
         Func<int, Stream> volumeStreamFactory,
         ulong maxVolumeBytes,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        string? password = null
     )
-        : base(entries, progress, cancellationToken)
+        : base(entries, progress, cancellationToken, password: password)
     {
         _volumeStreamFactory = volumeStreamFactory;
         _maxVolumeBytes = maxVolumeBytes;
@@ -64,4 +66,9 @@ internal sealed partial class MultiVolumeCompressionHandler
         volumeStream = new OutStreamAdapter(stream);
         return HResult.Ok;
     }
+
+    int ICryptoGetTextPassword2.CryptoGetTextPassword2(
+        out int passwordIsDefined,
+        out string password
+    ) => OnGetPassword(out passwordIsDefined, out password);
 }

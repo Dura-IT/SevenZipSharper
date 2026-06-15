@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using SevenZipSharper;
 using SevenZipSharper.Compression;
 using SevenZipSharper.Interop;
 
@@ -14,9 +15,13 @@ internal static class CompressionParametersMapper
     private const string PropKeyWordSize = "fb";
     private const string PropKeyThreadCount = "mt";
     private const string PropKeyEncryptHeaders = "he";
+    private const string PropKeyZipEncryptionMethod = "em";
 
     private const string PropValueOn = "on";
     private const string PropValueOff = "off";
+
+    // 7-Zip's Zip handler treats bare "AES" as AES-256 (see ZipHandlerOut.cpp: v defaults to 3 when no bit-count follows).
+    private const string MethodValueAes = "AES";
 
     // ISetProperties method name values
     private const string MethodNameLzma = "LZMA";
@@ -27,7 +32,8 @@ internal static class CompressionParametersMapper
     private const string MethodNameCopy = "Copy";
 
     internal static (string[] Names, PropVariant[] Values) ToSetProperties(
-        CompressionParameters parameters
+        CompressionParameters parameters,
+        ArchiveFormat format
     )
     {
         var names = new List<string>();
@@ -40,11 +46,19 @@ internal static class CompressionParametersMapper
         }
 
         Add(PropKeyLevel, PropVariant.FromUInt32((uint)parameters.Level));
-        Add(PropKeyMethod, PropVariant.FromString(ToMethodName(parameters.Method)));
-        Add(
-            PropKeySolid,
-            PropVariant.FromString(parameters.SolidMode ? PropValueOn : PropValueOff)
-        );
+
+        // Single-codec formats (GZip, BZip2, Tar, Xz) have a fixed codec and reject the method
+        // property with E_INVALIDARG. Only emit it for formats that support codec selection.
+        if (format is ArchiveFormat.SevenZip or ArchiveFormat.Zip)
+            Add(PropKeyMethod, PropVariant.FromString(ToMethodName(parameters.Method)));
+
+        // Solid mode is 7z-specific; the Zip handler rejects it with E_INVALIDARG, which
+        // would abort SetProperties before em=AES is ever processed.
+        if (format == ArchiveFormat.SevenZip)
+            Add(
+                PropKeySolid,
+                PropVariant.FromString(parameters.SolidMode ? PropValueOn : PropValueOff)
+            );
 
         if (parameters.DictionarySize.HasValue)
             Add(PropKeyDictionarySize, PropVariant.FromUInt32(parameters.DictionarySize.Value));
@@ -57,6 +71,9 @@ internal static class CompressionParametersMapper
 
         if (parameters.EncryptHeaders && !string.IsNullOrEmpty(parameters.EncryptionPassword))
             Add(PropKeyEncryptHeaders, PropVariant.FromString(PropValueOn));
+
+        if (parameters.EncryptionPassword is not null && format == ArchiveFormat.Zip)
+            Add(PropKeyZipEncryptionMethod, PropVariant.FromString(MethodValueAes));
 
         return (names.ToArray(), values.ToArray());
     }

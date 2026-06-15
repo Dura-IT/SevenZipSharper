@@ -10,15 +10,19 @@ using SevenZipSharper.Interop.Streams;
 namespace SevenZipSharper.Compression;
 
 [GeneratedComClass]
-internal sealed partial class CompressionHandler : CompressionHandlerBase, IArchiveUpdateCallback
+internal sealed partial class CompressionHandler
+    : CompressionHandlerBase,
+        IArchiveUpdateCallback,
+        ICryptoGetTextPassword2
 {
     internal CompressionHandler(
         IReadOnlyList<(string EntryPath, Stream Data)> entries,
         IProgress<CompressionProgress>? progress,
         CancellationToken cancellationToken,
-        bool ownsEntryStreams = false
+        bool ownsEntryStreams = false,
+        string? password = null
     )
-        : base(entries, progress, cancellationToken, ownsEntryStreams) { }
+        : base(entries, progress, cancellationToken, ownsEntryStreams, password: password) { }
 
     int IProgress.SetTotal(ulong total) => OnSetTotal(total);
 
@@ -39,4 +43,9 @@ internal sealed partial class CompressionHandler : CompressionHandlerBase, IArch
 
     int IArchiveUpdateCallback.SetOperationResult(OperationResult result) =>
         OnSetOperationResult(result);
+
+    int ICryptoGetTextPassword2.CryptoGetTextPassword2(
+        out int passwordIsDefined,
+        out string password
+    ) => OnGetPassword(out passwordIsDefined, out password);
 }

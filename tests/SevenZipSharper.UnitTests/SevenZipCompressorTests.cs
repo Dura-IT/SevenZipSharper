@@ -18,12 +18,13 @@ public sealed class SevenZipCompressorTests
 {
     private static SevenZipCompressor CreateCompressor(
         IOutArchive? archive = null,
-        CompressionParameters? parameters = null
+        CompressionParameters? parameters = null,
+        ArchiveFormat format = ArchiveFormat.SevenZip
     )
     {
         archive ??= new FakeOutArchive();
         return new SevenZipCompressor(
-            ArchiveFormat.SevenZip,
+            format,
             parameters ?? CompressionParameters.Default,
             archive,
             NullLogger<SevenZipCompressor>.Instance
@@ -79,6 +80,46 @@ public sealed class SevenZipCompressorTests
         var result = await compressor.CompressAsync(OneEntry(), output);
 
         result.IsSuccess.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task CompressAsync_EncryptHeadersOnZip_ReturnsFailure()
+    {
+        var parameters = CompressionParameters.Default with
+        {
+            EncryptionPassword = "secret",
+            EncryptHeaders = true,
+        };
+        using var compressor = CreateCompressor(parameters: parameters, format: ArchiveFormat.Zip);
+
+        var result = await compressor.CompressAsync(OneEntry(), new MemoryStream());
+
+        result.IsFailed.Should().BeTrue();
+        result.Errors.Should().Contain(e => e.Message.Contains("EncryptHeaders"));
+    }
+
+    [Test]
+    public async Task CompressAsync_PasswordOnTar_ReturnsFailure()
+    {
+        var parameters = CompressionParameters.Default with { EncryptionPassword = "secret" };
+        using var compressor = CreateCompressor(parameters: parameters, format: ArchiveFormat.Tar);
+
+        var result = await compressor.CompressAsync(OneEntry(), new MemoryStream());
+
+        result.IsFailed.Should().BeTrue();
+        result.Errors.Should().Contain(e => e.Message.Contains("Encryption"));
+    }
+
+    [Test]
+    public async Task CompressAsync_PasswordOnGZip_ReturnsFailure()
+    {
+        var parameters = CompressionParameters.Default with { EncryptionPassword = "secret" };
+        using var compressor = CreateCompressor(parameters: parameters, format: ArchiveFormat.GZip);
+
+        var result = await compressor.CompressAsync(OneEntry(), new MemoryStream());
+
+        result.IsFailed.Should().BeTrue();
+        result.Errors.Should().Contain(e => e.Message.Contains("Encryption"));
     }
 
     [Test]

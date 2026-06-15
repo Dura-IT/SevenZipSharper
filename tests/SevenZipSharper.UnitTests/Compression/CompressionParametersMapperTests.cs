@@ -1,6 +1,7 @@
 using System.Linq;
 using AwesomeAssertions;
 using NUnit.Framework;
+using SevenZipSharper;
 using SevenZipSharper.Compression;
 
 namespace SevenZipSharper.UnitTests.Compression;
@@ -11,7 +12,10 @@ public sealed class CompressionParametersMapperTests
     [Test]
     public void ToSetProperties_Default_ProducesExpectedKeys()
     {
-        var (names, _) = CompressionParametersMapper.ToSetProperties(CompressionParameters.Default);
+        var (names, _) = CompressionParametersMapper.ToSetProperties(
+            CompressionParameters.Default,
+            ArchiveFormat.SevenZip
+        );
 
         names.Should().Contain("x");
         names.Should().Contain("0");
@@ -26,7 +30,8 @@ public sealed class CompressionParametersMapperTests
     public void ToSetProperties_Default_LevelIsNormal()
     {
         var (names, values) = CompressionParametersMapper.ToSetProperties(
-            CompressionParameters.Default
+            CompressionParameters.Default,
+            ArchiveFormat.SevenZip
         );
         var levelIndex = System.Array.IndexOf(names, "x");
 
@@ -37,7 +42,8 @@ public sealed class CompressionParametersMapperTests
     public void ToSetProperties_Default_MethodIsLzma2()
     {
         var (names, values) = CompressionParametersMapper.ToSetProperties(
-            CompressionParameters.Default
+            CompressionParameters.Default,
+            ArchiveFormat.SevenZip
         );
         var methodIndex = System.Array.IndexOf(names, "0");
 
@@ -48,7 +54,8 @@ public sealed class CompressionParametersMapperTests
     public void ToSetProperties_Default_SolidIsOn()
     {
         var (names, values) = CompressionParametersMapper.ToSetProperties(
-            CompressionParameters.Default
+            CompressionParameters.Default,
+            ArchiveFormat.SevenZip
         );
         var solidIndex = System.Array.IndexOf(names, "s");
 
@@ -59,7 +66,8 @@ public sealed class CompressionParametersMapperTests
     public void ToSetProperties_Store_LevelIsZeroAndMethodIsCopyAndSolidIsOff()
     {
         var (names, values) = CompressionParametersMapper.ToSetProperties(
-            CompressionParameters.Store
+            CompressionParameters.Store,
+            ArchiveFormat.SevenZip
         );
 
         var levelIndex = System.Array.IndexOf(names, "x");
@@ -75,7 +83,10 @@ public sealed class CompressionParametersMapperTests
     public void ToSetProperties_AddsDictionaryKey_WhenDictionarySizeSet()
     {
         var p = CompressionParameters.Default with { DictionarySize = 64 * 1024 * 1024u };
-        var (names, values) = CompressionParametersMapper.ToSetProperties(p);
+        var (names, values) = CompressionParametersMapper.ToSetProperties(
+            p,
+            ArchiveFormat.SevenZip
+        );
 
         var dictIndex = System.Array.IndexOf(names, "d");
         dictIndex.Should().BeGreaterThanOrEqualTo(0);
@@ -86,7 +97,10 @@ public sealed class CompressionParametersMapperTests
     public void ToSetProperties_AddsWordSizeKey_WhenWordSizeSet()
     {
         var p = CompressionParameters.Default with { WordSize = 64 };
-        var (names, values) = CompressionParametersMapper.ToSetProperties(p);
+        var (names, values) = CompressionParametersMapper.ToSetProperties(
+            p,
+            ArchiveFormat.SevenZip
+        );
 
         var fbIndex = System.Array.IndexOf(names, "fb");
         fbIndex.Should().BeGreaterThanOrEqualTo(0);
@@ -97,7 +111,10 @@ public sealed class CompressionParametersMapperTests
     public void ToSetProperties_AddsThreadKey_WhenThreadCountSet()
     {
         var p = CompressionParameters.Default with { ThreadCount = 4 };
-        var (names, values) = CompressionParametersMapper.ToSetProperties(p);
+        var (names, values) = CompressionParametersMapper.ToSetProperties(
+            p,
+            ArchiveFormat.SevenZip
+        );
 
         var mtIndex = System.Array.IndexOf(names, "mt");
         mtIndex.Should().BeGreaterThanOrEqualTo(0);
@@ -112,7 +129,7 @@ public sealed class CompressionParametersMapperTests
             EncryptionPassword = "secret",
             EncryptHeaders = true,
         };
-        var (names, _) = CompressionParametersMapper.ToSetProperties(p);
+        var (names, _) = CompressionParametersMapper.ToSetProperties(p, ArchiveFormat.SevenZip);
 
         names.Should().Contain("he");
     }
@@ -121,7 +138,7 @@ public sealed class CompressionParametersMapperTests
     public void ToSetProperties_DoesNotAddEncryptHeadersKey_WhenPasswordNotSet()
     {
         var p = CompressionParameters.Default with { EncryptHeaders = true };
-        var (names, _) = CompressionParametersMapper.ToSetProperties(p);
+        var (names, _) = CompressionParametersMapper.ToSetProperties(p, ArchiveFormat.SevenZip);
 
         names.Should().NotContain("he");
     }
@@ -130,9 +147,93 @@ public sealed class CompressionParametersMapperTests
     public void ToSetProperties_NamesAndValuesHaveSameLength()
     {
         var (names, values) = CompressionParametersMapper.ToSetProperties(
-            CompressionParameters.MaximumLzma2
+            CompressionParameters.MaximumLzma2,
+            ArchiveFormat.SevenZip
         );
 
         names.Length.Should().Be(values.Length);
+    }
+
+    [Test]
+    public void ToSetProperties_ZipWithPassword_EmitsEmAes256()
+    {
+        var p = CompressionParameters.Default with { EncryptionPassword = "secret" };
+        var (names, values) = CompressionParametersMapper.ToSetProperties(p, ArchiveFormat.Zip);
+
+        var emIndex = System.Array.IndexOf(names, "em");
+        emIndex.Should().BeGreaterThanOrEqualTo(0);
+        values[emIndex].ToStringValue().Should().Be("AES");
+    }
+
+    [Test]
+    public void ToSetProperties_SevenZipWithPassword_DoesNotEmitEm()
+    {
+        var p = CompressionParameters.Default with { EncryptionPassword = "secret" };
+        var (names, _) = CompressionParametersMapper.ToSetProperties(p, ArchiveFormat.SevenZip);
+
+        names.Should().NotContain("em");
+    }
+
+    [Test]
+    public void ToSetProperties_ZipWithoutPassword_DoesNotEmitEm()
+    {
+        var (names, _) = CompressionParametersMapper.ToSetProperties(
+            CompressionParameters.Default,
+            ArchiveFormat.Zip
+        );
+
+        names.Should().NotContain("em");
+    }
+
+    [Test]
+    public void ToSetProperties_Zip_DoesNotEmitSolidMode()
+    {
+        var (names, _) = CompressionParametersMapper.ToSetProperties(
+            CompressionParameters.Default,
+            ArchiveFormat.Zip
+        );
+
+        names.Should().NotContain("s");
+    }
+
+    [Test]
+    public void ToSetProperties_SevenZip_EmitsSolidMode()
+    {
+        var (names, _) = CompressionParametersMapper.ToSetProperties(
+            CompressionParameters.Default,
+            ArchiveFormat.SevenZip
+        );
+
+        names.Should().Contain("s");
+    }
+
+    [Test]
+    public void ToSetProperties_SingleCodecFormats_DoNotEmitMethodProperty()
+    {
+        foreach (var format in new[] { ArchiveFormat.GZip, ArchiveFormat.BZip2, ArchiveFormat.Tar })
+        {
+            var (names, _) = CompressionParametersMapper.ToSetProperties(
+                CompressionParameters.Default,
+                format
+            );
+
+            names
+                .Should()
+                .NotContain("0", $"{format} has a fixed codec and rejects the method property");
+        }
+    }
+
+    [Test]
+    public void ToSetProperties_SevenZipAndZip_EmitMethodProperty()
+    {
+        foreach (var format in new[] { ArchiveFormat.SevenZip, ArchiveFormat.Zip })
+        {
+            var (names, _) = CompressionParametersMapper.ToSetProperties(
+                CompressionParameters.Default,
+                format
+            );
+
+            names.Should().Contain("0", $"{format} supports codec selection");
+        }
     }
 }

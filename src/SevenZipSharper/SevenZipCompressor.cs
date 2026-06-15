@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using SevenZipSharper.Compression;
+using SevenZipSharper.Extraction;
 using SevenZipSharper.Interop;
 using SevenZipSharper.Interop.Archive;
 using SevenZipSharper.Interop.Streams;
@@ -204,7 +205,8 @@ public sealed class SevenZipCompressor : IDisposable
             progress,
             volumeStreamFactory,
             maxVolumeBytes,
-            cancellationToken
+            cancellationToken,
+            password: _parameters.EncryptionPassword
         );
         var firstVolume = new OutStreamAdapter(volumeStreamFactory(0));
         return RunUpdateItemsAsync(
@@ -239,6 +241,10 @@ public sealed class SevenZipCompressor : IDisposable
         if (validation.IsFailed)
             return validation;
 
+        var compatibility = ValidateFormatCompatibility();
+        if (compatibility.IsFailed)
+            return compatibility;
+
         var newEntryList = newEntries.ToList();
 
         var inArchive = SevenZipLib.CreateArchiveObject<IInArchive>(
@@ -247,7 +253,11 @@ public sealed class SevenZipCompressor : IDisposable
 
         try
         {
-            var openHr = inArchive.Open(new InStreamAdapter(existingArchive), IntPtr.Zero, null);
+            var openHr = inArchive.Open(
+                new InStreamAdapter(existingArchive),
+                IntPtr.Zero,
+                new ArchiveOpenHandler(_parameters.EncryptionPassword)
+            );
             if (openHr != HResult.Ok)
             {
                 OpenExistingFailed(_logger, openHr);
@@ -262,7 +272,9 @@ public sealed class SevenZipCompressor : IDisposable
                 return Result.Fail("Archive format does not support append.");
             }
 
-            ApplyParametersTo(outArchive);
+            var applyResult = ApplyParametersTo(outArchive);
+            if (applyResult.IsFailed)
+                return applyResult;
 
             return await AppendCoreAsync(
                     inArchive,
@@ -295,6 +307,10 @@ public sealed class SevenZipCompressor : IDisposable
         var validation = _parameters.Validate();
         if (validation.IsFailed)
             return Task.FromResult(validation);
+
+        var compatibility = ValidateFormatCompatibility();
+        if (compatibility.IsFailed)
+            return Task.FromResult(compatibility);
 
         return AppendCoreAsync(
             inArchive,
@@ -330,15 +346,24 @@ public sealed class SevenZipCompressor : IDisposable
         if (validation.IsFailed)
             return validation;
 
+        var compatibility = ValidateFormatCompatibility();
+        if (compatibility.IsFailed)
+            return compatibility;
+
         if (_applyNativeParameters)
-            ApplyParametersTo(_archive);
+        {
+            var applyResult = ApplyParametersTo(_archive);
+            if (applyResult.IsFailed)
+                return applyResult;
+        }
 
         var outAdapter = new OutStreamAdapter(output);
         var handler = new CompressionHandler(
             entries,
             progress,
             cancellationToken,
-            ownsEntryStreams
+            ownsEntryStreams,
+            password: _parameters.EncryptionPassword
         );
 
         var result = await RunUpdateItemsAsync(
@@ -368,15 +393,24 @@ public sealed class SevenZipCompressor : IDisposable
         if (validation.IsFailed)
             return validation;
 
+        var compatibility = ValidateFormatCompatibility();
+        if (compatibility.IsFailed)
+            return compatibility;
+
         if (_applyNativeParameters)
-            ApplyParametersTo(_archive);
+        {
+            var applyResult = ApplyParametersTo(_archive);
+            if (applyResult.IsFailed)
+                return applyResult;
+        }
 
         var handler = new MultiVolumeCompressionHandler(
             entries,
             progress,
             volumeStreamFactory,
             maxVolumeBytes,
-            cancellationToken
+            cancellationToken,
+            password: _parameters.EncryptionPassword
         );
         var firstVolume = new OutStreamAdapter(volumeStreamFactory(0));
 
@@ -410,7 +444,8 @@ public sealed class SevenZipCompressor : IDisposable
             existingCount,
             newEntries,
             progress,
-            cancellationToken
+            cancellationToken,
+            password: _parameters.EncryptionPassword
         );
         var outAdapter = new OutStreamAdapter(output);
         var totalCount = existingCount + (uint)newEntries.Count;
@@ -452,7 +487,21 @@ public sealed class SevenZipCompressor : IDisposable
             cancellationToken
         );
 
-    private void ApplyParametersTo(IOutArchive archive)
+    private Result ValidateFormatCompatibility()
+    {
+        if (_parameters.EncryptHeaders && _format != ArchiveFormat.SevenZip)
+            return Result.Fail("EncryptHeaders is only supported for the 7z format.");
+
+        if (
+            _parameters.EncryptionPassword is not null
+            && _format is not ArchiveFormat.SevenZip and not ArchiveFormat.Zip
+        )
+            return Result.Fail("Encryption is only supported for the 7z and Zip formats.");
+
+        return Result.Ok();
+    }
+
+    private Result ApplyParametersTo(IOutArchive archive)
     {
         // Zip does not support LZMA2 — fall back to Deflate.
         // NOTE: Other single-codec formats (Tar, GZip, BZip2, Xz) also need compatible method
@@ -464,9 +513,9 @@ public sealed class SevenZipCompressor : IDisposable
                     Method = CompressionMethod.Deflate,
                 }
                 : _parameters;
-        var (names, values) = CompressionParametersMapper.ToSetProperties(parameters);
+        var (names, values) = CompressionParametersMapper.ToSetProperties(parameters, _format);
         if (names.Length == 0)
-            return;
+            return Result.Ok();
 
         var namePointers = new nint[names.Length];
         try
@@ -482,11 +531,18 @@ public sealed class SevenZipCompressor : IDisposable
                     var valuesHandle = GCHandle.Alloc(values, GCHandleType.Pinned);
                     try
                     {
-                        setProps.SetProperties(
+                        var hr = setProps.SetProperties(
                             nameHandle.AddrOfPinnedObject(),
                             valuesHandle.AddrOfPinnedObject(),
                             (uint)names.Length
                         );
+                        if (hr != HResult.Ok)
+                        {
+                            SetPropertiesFailed(_logger, hr);
+                            return Result.Fail(
+                                $"Failed to apply compression parameters (HRESULT: 0x{hr:X8})."
+                            );
+                        }
                     }
                     finally
                     {
@@ -506,6 +562,8 @@ public sealed class SevenZipCompressor : IDisposable
             for (var i = 0; i < values.Length; i++)
                 values[i].Clear();
         }
+
+        return Result.Ok();
     }
 
     // Opens the underlying FileStream lazily on the first Seek or Read call so
