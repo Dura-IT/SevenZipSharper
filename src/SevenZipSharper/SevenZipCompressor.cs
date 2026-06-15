@@ -97,6 +97,19 @@ public sealed class SevenZipCompressor : IDisposable
     /// <param name="progress">Optional progress sink; receives a snapshot after each block of bytes is processed.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
     /// <returns>A successful result on completion, or a failed result if compression fails.</returns>
+    /// <example>
+    /// <code>
+    /// using var compressor = new SevenZipCompressor(
+    ///     ArchiveFormat.SevenZip, CompressionParameters.MaximumLzma2, logger);
+    /// var entries = new[]
+    /// {
+    ///     ("readme.md", (Stream)new MemoryStream(readmeBytes)),
+    ///     ("data.bin",  (Stream)new MemoryStream(dataBytes)),
+    /// };
+    /// using var output = File.Create("archive.7z");
+    /// await compressor.CompressAsync(entries, output);
+    /// </code>
+    /// </example>
     /// <exception cref="ObjectDisposedException">Thrown if the compressor has been disposed.</exception>
     public async Task<Result> CompressAsync(
         IEnumerable<(string EntryPath, Stream Data)> entries,
@@ -121,6 +134,13 @@ public sealed class SevenZipCompressor : IDisposable
     /// <param name="cancellationToken">Token to cancel the operation.</param>
     /// <returns>A successful result on completion, or a failed result if compression fails.</returns>
     /// <remarks>Each file is opened lazily when the native compressor requests its stream, so at most one file handle is held open at a time.</remarks>
+    /// <example>
+    /// <code>
+    /// var files = Directory.GetFiles("/var/data", "*.log", SearchOption.AllDirectories);
+    /// using var output = File.Create("logs.7z");
+    /// await compressor.CompressFilesAsync(files, basePath: "/var/data", output);
+    /// </code>
+    /// </example>
     /// <exception cref="ObjectDisposedException">Thrown if the compressor has been disposed.</exception>
     public async Task<Result> CompressFilesAsync(
         IEnumerable<string> filePaths,
@@ -168,6 +188,15 @@ public sealed class SevenZipCompressor : IDisposable
     /// <param name="progress">Optional progress sink; receives a snapshot after each block of bytes is processed.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
     /// <returns>A successful result on completion, or a failed result if compression fails.</returns>
+    /// <example>
+    /// <code>
+    /// // 50 MB volumes named archive.7z.001, .002, ...
+    /// Stream VolumeFactory(int index) =>
+    ///     File.Create($"archive.7z.{(index + 1):D3}");
+    /// await compressor.CompressMultiVolumeAsync(
+    ///     entries, VolumeFactory, maxVolumeBytes: 50UL * 1024 * 1024);
+    /// </code>
+    /// </example>
     /// <exception cref="ObjectDisposedException">Thrown if the compressor has been disposed.</exception>
     public async Task<Result> CompressMultiVolumeAsync(
         IEnumerable<(string EntryPath, Stream Data)> entries,
@@ -233,6 +262,17 @@ public sealed class SevenZipCompressor : IDisposable
     /// produces an archive whose existing and appended entries cannot be decrypted with the
     /// same password — there is no detection for this case.
     /// </remarks>
+    /// <example>
+    /// <code>
+    /// using var existing = File.OpenRead("archive.7z");
+    /// using var output   = File.Create("archive-updated.7z");
+    /// var newEntries = new[]
+    /// {
+    ///     ("changelog.txt", (Stream)new MemoryStream(changelogBytes)),
+    /// };
+    /// await compressor.AppendAsync(existing, newEntries, output);
+    /// </code>
+    /// </example>
     /// <exception cref="ObjectDisposedException">Thrown if the compressor has been disposed.</exception>
     public async Task<Result> AppendAsync(
         Stream existingArchive,

@@ -94,6 +94,15 @@ public sealed class SevenZipExtractor : IDisposable
     /// <param name="cancellationToken">Token to cancel the operation.</param>
     /// <returns>A successful result containing archive metadata, or a failed result if the archive could not be opened.</returns>
     /// <remarks>Must be called before <see cref="ListEntriesAsync"/>, <see cref="ExtractAllAsync"/>, <see cref="ExtractEntryAsync"/>, or any <c>ExtractAsync</c> overload.</remarks>
+    /// <example>
+    /// <code>
+    /// using var stream = File.OpenRead("archive.7z");
+    /// using var extractor = new SevenZipExtractor(stream, ArchiveFormat.SevenZip, logger);
+    /// var info = await extractor.OpenAsync(password: "secret");
+    /// if (info.IsFailed) return info.ToResult();
+    /// Console.WriteLine($"Solid: {info.Value.IsSolid}, encrypted: {info.Value.IsEncrypted}");
+    /// </code>
+    /// </example>
     /// <exception cref="ObjectDisposedException">Thrown if the extractor has been disposed.</exception>
     public async Task<Result<ArchiveInfo>> OpenAsync(
         string? password = null,
@@ -177,6 +186,14 @@ public sealed class SevenZipExtractor : IDisposable
     /// <param name="cancellationToken">Token to cancel the operation.</param>
     /// <returns>A successful result on completion, or a failed result if extraction fails or any entry has errors.</returns>
     /// <remarks>Entries whose paths resolve outside <paramref name="outputPath"/> (zip-slip) are silently skipped.</remarks>
+    /// <example>
+    /// <code>
+    /// await extractor.OpenAsync();
+    /// var progress = new Progress&lt;ExtractionProgress&gt;(p =>
+    ///     Console.WriteLine($"{p.EntryPath} — {p.EntryIndex + 1}/{p.TotalEntries}"));
+    /// var result = await extractor.ExtractAllAsync("/path/to/output", progress);
+    /// </code>
+    /// </example>
     /// <exception cref="ObjectDisposedException">Thrown if the extractor has been disposed.</exception>
     public async Task<Result> ExtractAllAsync(
         string outputPath,
@@ -234,6 +251,15 @@ public sealed class SevenZipExtractor : IDisposable
     /// <param name="outputStream">Writable stream that receives the decompressed data.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
     /// <returns>A successful result on completion, or a failed result if extraction fails or the entry has errors.</returns>
+    /// <example>
+    /// <code>
+    /// await extractor.OpenAsync();
+    /// var entries = (await extractor.ListEntriesAsync()).Value;
+    /// var readme = entries.First(e => e.Path == "readme.md");
+    /// using var output = new MemoryStream();
+    /// await extractor.ExtractEntryAsync(readme, output);
+    /// </code>
+    /// </example>
     /// <exception cref="ObjectDisposedException">Thrown if the extractor has been disposed.</exception>
     public async Task<Result> ExtractEntryAsync(
         ArchiveEntry entry,
@@ -290,6 +316,14 @@ public sealed class SevenZipExtractor : IDisposable
     /// <param name="cancellationToken">Token to cancel the operation.</param>
     /// <returns>A successful result on completion, or a failed result if extraction fails or any matched entry has errors.</returns>
     /// <remarks>Calls <see cref="ListEntriesAsync"/> internally. Use the <see cref="ExtractAsync(IReadOnlyList{ArchiveEntry},Func{ArchiveEntry,bool},string,IProgress{ExtractionProgress}?,CancellationToken)"/> overload to avoid the extra round-trip when you already have the entry list.</remarks>
+    /// <example>
+    /// <code>
+    /// await extractor.OpenAsync();
+    /// await extractor.ExtractAsync(
+    ///     e => e.Path.EndsWith(".txt", StringComparison.OrdinalIgnoreCase),
+    ///     "/path/to/output");
+    /// </code>
+    /// </example>
     /// <exception cref="ObjectDisposedException">Thrown if the extractor has been disposed.</exception>
     public async Task<Result> ExtractAsync(
         Func<ArchiveEntry, bool> filter,

@@ -93,6 +93,26 @@ Native 7-Zip libraries are bundled as RID-specific NuGet assets under `runtimes/
 
 **RAR is not supported.** The unRAR source code carries a redistribution restriction that is incompatible with SevenZipSharper's LGPL licence. If you need RAR extraction, use a dedicated unRAR library alongside this one.
 
+### Format × method compatibility
+
+Compression methods and encryption support vary by format. This table is the spec encoded in `FormatFallbackBehaviorTests`:
+
+| Format    | LZMA2 / LZMA / PPMd                  | BZip2 / Deflate / Copy | Password           | Header encryption |
+|-----------|--------------------------------------|------------------------|--------------------|-------------------|
+| 7z        | Native                               | Native                 | AES-256            | Yes               |
+| Zip       | Silently falls back to Deflate       | Native                 | AES-256 (default)  | —                 |
+| GZip      | Method ignored (built-in gzip codec) | Method ignored         | —                  | —                 |
+| BZip2     | Method ignored (built-in bzip2 codec)| Method ignored         | —                  | —                 |
+| Tar       | Method ignored (container only)      | Method ignored         | —                  | —                 |
+| Xz        | No write handler — constructor throws| —                      | —                  | —                 |
+
+Notes:
+
+- **Zip + LZMA2** (the default) is rewritten to Deflate before being passed to 7-Zip so the produced archive is a standard ZIP. LZMA and PPMd are similarly substituted by the native layer.
+- **Zip password encryption** sets `em=AES`, which 7-Zip writes as AES-256 (WinZip AES, extra field `0x9901`, strength 3) — *not* the legacy weak ZipCrypto.
+- **Solid mode** (`SolidMode = true`, default) is meaningful only for 7z; the property is silently dropped for all other formats.
+- Setting `EncryptionPassword` on GZip / BZip2 / Tar / Xz returns `Result.Fail` rather than silently producing an unencrypted archive. `EncryptHeaders = true` on any non-7z format does the same.
+
 ---
 
 ## Installation
