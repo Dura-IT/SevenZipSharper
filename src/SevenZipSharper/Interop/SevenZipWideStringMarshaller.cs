@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices.Marshalling;
 
 namespace SevenZipSharper.Interop;
@@ -11,7 +12,13 @@ namespace SevenZipSharper.Interop;
 /// Do NOT use this for BSTR parameters; use <see cref="SevenZipBStrMarshaller"/> instead.
 /// </remarks>
 [CustomMarshaller(typeof(string), MarshalMode.Default, typeof(SevenZipWideStringMarshaller))]
-internal static unsafe class SevenZipWideStringMarshaller // NOSONAR — unsafe required for wchar_t pointer marshalling
+[SuppressMessage(
+    "Security",
+    "S6640:Make sure that using \"unsafe\" is safe here.",
+    Justification = "Required to marshal raw wchar_t pointers across the 7-Zip COM boundary; "
+        + "every pointer originates from SevenZipWideString.Alloc/Read and is released via SevenZipWideString.Free."
+)]
+internal static unsafe class SevenZipWideStringMarshaller
 {
     /// <summary>
     /// Converts a managed string to an unmanaged wchar_t pointer.

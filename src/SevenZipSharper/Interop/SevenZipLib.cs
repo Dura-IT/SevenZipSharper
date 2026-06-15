@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 
@@ -13,7 +14,13 @@ internal static partial class SevenZipLib
         out nint outObject
     );
 
-    internal static unsafe T CreateArchiveObject<T>(Guid classId) // NOSONAR — unsafe required for COM vtable pointer cast
+    [SuppressMessage(
+        "Security",
+        "S6640:Make sure that using \"unsafe\" is safe here.",
+        Justification = "Required to cast the 7-Zip CreateObject HRESULT-out pointer through "
+            + "ComInterfaceMarshaller<T>.ConvertToManaged, which only accepts void*."
+    )]
+    internal static unsafe T CreateArchiveObject<T>(Guid classId)
         where T : class
     {
         var interfaceId = typeof(T).GUID;

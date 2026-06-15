@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices.Marshalling;
 
 namespace SevenZipSharper.Interop;
@@ -14,7 +15,13 @@ namespace SevenZipSharper.Interop;
 /// </list>
 /// </remarks>
 [CustomMarshaller(typeof(string), MarshalMode.Default, typeof(SevenZipBStrMarshaller))]
-internal static unsafe class SevenZipBStrMarshaller // NOSONAR — unsafe required for BSTR pointer marshalling
+[SuppressMessage(
+    "Security",
+    "S6640:Make sure that using \"unsafe\" is safe here.",
+    Justification = "Required to marshal raw BSTR pointers across the 7-Zip COM boundary; "
+        + "every pointer originates from SevenZipBStr.Alloc/Read and is released via SevenZipBStr.Free."
+)]
+internal static unsafe class SevenZipBStrMarshaller
 {
     /// <summary>
     /// Converts a managed string to an unmanaged BSTR pointer.
