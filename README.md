@@ -118,12 +118,10 @@ Notes:
 ## Installation
 
 ```
-dotnet add package DuraIT.SevenZipSharper --version 0.1.0
+dotnet add package DuraIT.SevenZipSharper
 ```
 
 `DuraIT.SevenZipSharper` has a direct dependency on `DuraIT.SevenZipSharper.Native`, so a single package reference is all you need — the native 7-Zip binaries for your platform are pulled in automatically.
-
-> Native 7-Zip binaries are not yet bundled. The packages are published pre-release pending native library compilation for all supported platforms.
 
 ---
 
