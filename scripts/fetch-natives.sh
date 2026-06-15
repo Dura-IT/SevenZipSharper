@@ -57,7 +57,7 @@ SRC_DIR="$WORK_DIR/7z${VERSION}-src"
 
 if [[ ! -f "$TARBALL" ]]; then
   echo "--> Downloading source tarball..."
-  curl -fsSL "$BASE_URL/7z${VERSION}-src.tar.xz" -o "$TARBALL"
+  curl -fsSL --proto '=https' "$BASE_URL/7z${VERSION}-src.tar.xz" -o "$TARBALL"
 fi
 
 # Verify checksum.
