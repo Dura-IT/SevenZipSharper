@@ -127,6 +127,13 @@ jobs:
         run: |
           VERSION=${{ steps.archive.outputs.version }}
           TAG="natives-v$VERSION"
+          ASSET="natives-v$VERSION.tar.gz"
+          if gh release view "$TAG" --repo "${{ github.repository }}" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx "$ASSET"; then
+            echo "::error::Asset $ASSET already exists on release $TAG. Native artifacts are immutable per 7-Zip version."
+            echo "::error::To force a rebuild, explicitly delete the existing asset first:"
+            echo "::error::  gh release delete-asset $TAG $ASSET --repo ${{ github.repository }}"
+            exit 1
+          fi
           if ! gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             gh release create "$TAG" \
               --repo "${{ github.repository }}" \
@@ -135,5 +142,4 @@ jobs:
           fi
           gh release upload "$TAG" \
             --repo "${{ github.repository }}" \
-            --clobber \
             "${{ steps.archive.outputs.path }}"
