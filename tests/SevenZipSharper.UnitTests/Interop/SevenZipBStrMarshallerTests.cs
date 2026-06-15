@@ -1,0 +1,89 @@
+using AwesomeAssertions;
+using NUnit.Framework;
+using SevenZipSharper.Interop;
+
+namespace SevenZipSharper.UnitTests.Interop;
+
+[TestOf(typeof(SevenZipBStrMarshaller))]
+public sealed unsafe class SevenZipBStrMarshallerTests
+{
+    [Test]
+    public void ConvertToUnmanaged_NullManaged_ReturnsNullPointer()
+    {
+        var ptr = SevenZipBStrMarshaller.ConvertToUnmanaged(null);
+
+        ((nint)ptr).Should().Be(nint.Zero);
+    }
+
+    [Test]
+    public void ConvertToManaged_NullPointer_ReturnsNull()
+    {
+        SevenZipBStrMarshaller.ConvertToManaged(null).Should().BeNull();
+    }
+
+    [Test]
+    public void Free_NullPointer_DoesNotThrow()
+    {
+        var act = () => SevenZipBStrMarshaller.Free(null);
+
+        act.Should().NotThrow();
+    }
+
+    [Test]
+    public void ConvertToUnmanaged_Read_RoundTrip_EmptyString()
+    {
+        var ptr = SevenZipBStrMarshaller.ConvertToUnmanaged(string.Empty);
+        try
+        {
+            SevenZipBStrMarshaller.ConvertToManaged(ptr).Should().Be(string.Empty);
+        }
+        finally
+        {
+            SevenZipBStrMarshaller.Free(ptr);
+        }
+    }
+
+    [Test]
+    public void ConvertToUnmanaged_Read_RoundTrip_SingleAsciiChar()
+    {
+        var ptr = SevenZipBStrMarshaller.ConvertToUnmanaged("x");
+        try
+        {
+            SevenZipBStrMarshaller.ConvertToManaged(ptr).Should().Be("x");
+        }
+        finally
+        {
+            SevenZipBStrMarshaller.Free(ptr);
+        }
+    }
+
+    [Test]
+    public void ConvertToUnmanaged_Read_RoundTrip_MultiCharAscii()
+    {
+        var ptr = SevenZipBStrMarshaller.ConvertToUnmanaged("password");
+        try
+        {
+            SevenZipBStrMarshaller.ConvertToManaged(ptr).Should().Be("password");
+        }
+        finally
+        {
+            SevenZipBStrMarshaller.Free(ptr);
+        }
+    }
+
+    [Test]
+    public void ConvertToUnmanaged_Read_RoundTrip_BmpUnicode()
+    {
+        // U+00E9 (é), U+4E2D (中), U+00FC (ü) — BMP characters, safely representable.
+        const string value = "é中ü";
+        var ptr = SevenZipBStrMarshaller.ConvertToUnmanaged(value);
+        try
+        {
+            SevenZipBStrMarshaller.ConvertToManaged(ptr).Should().Be(value);
+        }
+        finally
+        {
+            SevenZipBStrMarshaller.Free(ptr);
+        }
+    }
+}

@@ -138,6 +138,118 @@ public sealed class SevenZipCompressorTests
             .Should()
             .ThrowAsync<System.OperationCanceledException>();
     }
+
+    [TestCase(ArchiveFormat.BZip2)]
+    [TestCase(ArchiveFormat.Xz)]
+    public async Task CompressAsync_PasswordOnUnsupportedFormat_ReturnsFailure(ArchiveFormat format)
+    {
+        var parameters = CompressionParameters.Default with { EncryptionPassword = "secret" };
+        using var compressor = CreateCompressor(parameters: parameters, format: format);
+
+        var result = await compressor.CompressAsync(OneEntry(), new MemoryStream());
+
+        result.IsFailed.Should().BeTrue();
+        result.Errors.Should().Contain(e => e.Message.Contains("Encryption"));
+    }
+
+    [TestCase(ArchiveFormat.Zip)]
+    [TestCase(ArchiveFormat.Tar)]
+    [TestCase(ArchiveFormat.GZip)]
+    [TestCase(ArchiveFormat.BZip2)]
+    [TestCase(ArchiveFormat.Xz)]
+    public async Task CompressAsync_EncryptHeadersOnNonSevenZipFormat_ReturnsFailure(
+        ArchiveFormat format
+    )
+    {
+        var parameters = CompressionParameters.Default with
+        {
+            EncryptionPassword = "secret",
+            EncryptHeaders = true,
+        };
+        using var compressor = CreateCompressor(parameters: parameters, format: format);
+
+        var result = await compressor.CompressAsync(OneEntry(), new MemoryStream());
+
+        result.IsFailed.Should().BeTrue();
+        result.Errors.Should().Contain(e => e.Message.Contains("EncryptHeaders"));
+    }
+
+    [Test]
+    public async Task CompressAsync_PasswordOnSevenZip_Succeeds()
+    {
+        var parameters = CompressionParameters.Default with { EncryptionPassword = "secret" };
+        using var compressor = CreateCompressor(parameters: parameters);
+
+        var result = await compressor.CompressAsync(OneEntry(), new MemoryStream());
+
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task CompressAsync_PasswordOnZip_Succeeds()
+    {
+        var parameters = CompressionParameters.Default with { EncryptionPassword = "secret" };
+        using var compressor = CreateCompressor(parameters: parameters, format: ArchiveFormat.Zip);
+
+        var result = await compressor.CompressAsync(OneEntry(), new MemoryStream());
+
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Test]
+    public void Dispose_IsIdempotent()
+    {
+        var compressor = CreateCompressor();
+
+        compressor.Dispose();
+        var act = () => compressor.Dispose();
+
+        act.Should().NotThrow();
+    }
+
+    [Test]
+    public async Task CompressAsync_ThrowsObjectDisposedException_AfterDispose()
+    {
+        var compressor = CreateCompressor();
+        compressor.Dispose();
+
+        await FluentActions
+            .Awaiting(() => compressor.CompressAsync(OneEntry(), new MemoryStream()))
+            .Should()
+            .ThrowAsync<System.ObjectDisposedException>();
+    }
+
+    [Test]
+    public async Task CompressFilesAsync_ThrowsObjectDisposedException_AfterDispose()
+    {
+        var compressor = CreateCompressor();
+        compressor.Dispose();
+
+        await FluentActions
+            .Awaiting(() =>
+                compressor.CompressFilesAsync(
+                    new[] { "anything" },
+                    System.IO.Path.GetTempPath(),
+                    new MemoryStream()
+                )
+            )
+            .Should()
+            .ThrowAsync<System.ObjectDisposedException>();
+    }
+
+    [Test]
+    public async Task CompressMultiVolumeAsync_ThrowsObjectDisposedException_AfterDispose()
+    {
+        var compressor = CreateCompressor();
+        compressor.Dispose();
+
+        await FluentActions
+            .Awaiting(() =>
+                compressor.CompressMultiVolumeAsync(OneEntry(), _ => new MemoryStream(), 1024)
+            )
+            .Should()
+            .ThrowAsync<System.ObjectDisposedException>();
+    }
 }
 
 [GeneratedComClass]
