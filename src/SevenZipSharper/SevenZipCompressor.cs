@@ -566,34 +566,6 @@ public sealed class SevenZipCompressor : IDisposable
         if (names.Length == 0)
             return Result.Ok();
 
-        // DIAGNOSTIC (temporary, remove before merging to main): dump what we send to
-        // SetProperties so we can compare wire bytes against the Win32 PROPVARIANT spec.
-        Console.Error.WriteLine($"[SetProperties] count={names.Length} format={_format}");
-        for (var d = 0; d < names.Length; d++)
-        {
-            var structBytes = System.Runtime.InteropServices.MemoryMarshal.AsBytes(
-                values.AsSpan(d, 1)
-            );
-            Console.Error.WriteLine(
-                $"[SetProperties] i={d} name='{names[d]}' vt={values[d].VarType} valueBytes={Convert.ToHexString(structBytes)}"
-            );
-            // If VT_BSTR (8), dereference and dump length prefix + content
-            if (values[d].VarType == 8)
-            {
-                var bstrPtr = System.Runtime.InteropServices.MemoryMarshal.Read<nint>(
-                    structBytes.Slice(8, 8)
-                );
-                var lenPrefix = Marshal.ReadInt32(bstrPtr - 4);
-                var contentLen = Math.Min(Math.Max(lenPrefix, 0) + 4, 32);
-                var content = new byte[contentLen];
-                for (var b = 0; b < contentLen; b++)
-                    content[b] = Marshal.ReadByte(bstrPtr, b);
-                Console.Error.WriteLine(
-                    $"[SetProperties] i={d}   bstrLen={lenPrefix} bstrContent={Convert.ToHexString(content)}"
-                );
-            }
-        }
-
         var namePointers = new nint[names.Length];
         try
         {
@@ -605,43 +577,22 @@ public sealed class SevenZipCompressor : IDisposable
                 var nameHandle = GCHandle.Alloc(namePointers, GCHandleType.Pinned);
                 try
                 {
-                    var valuesHandle = GCHandle.Alloc(values, GCHandleType.Pinned);
+                    // Windows propidlbase.h PROPVARIANT is 24 bytes on x64 (8-byte header +
+                    // 16-byte inner union — the inner union must fit counted-array members
+                    // like CAUB = {ULONG cElems; XXX *pElems;} which pad to 16 on x64).
+                    // POSIX 7-Zip uses a simpler PROPVARIANT (8 + 8 = 16 bytes) per
+                    // CPP/Common/MyWindows.h. Our managed PropVariant is 16 bytes to match
+                    // POSIX; on Windows we must repack into a 24-byte-stride buffer or
+                    // ISetProperties reads the wrong VARTYPE for values[1..] and returns
+                    // E_INVALIDARG.
+                    var (valuesPtr, freeValues) = AllocPlatformValuesBuffer(values);
                     try
                     {
-                        // DIAGNOSTIC (temporary): dump the actual wire-side array bytes
-                        // from the pinned addresses to test H2/H3 (pinned-address quirks).
-                        var nameArrayPtr = nameHandle.AddrOfPinnedObject();
-                        var valueArrayPtr = valuesHandle.AddrOfPinnedObject();
-                        var nameBytes = new byte[names.Length * 8];
-                        for (var b = 0; b < nameBytes.Length; b++)
-                            nameBytes[b] = Marshal.ReadByte(nameArrayPtr, b);
-                        var valueBytes = new byte[names.Length * 16];
-                        for (var b = 0; b < valueBytes.Length; b++)
-                            valueBytes[b] = Marshal.ReadByte(valueArrayPtr, b);
-                        Console.Error.WriteLine(
-                            $"[SetProperties] namesArrayBytes={Convert.ToHexString(nameBytes)}"
-                        );
-                        Console.Error.WriteLine(
-                            $"[SetProperties] valuesArrayBytes={Convert.ToHexString(valueBytes)}"
-                        );
-                        // Dereference each name pointer and dump 8 bytes (covers "x\0" UTF-16 + slack
-                        // on Windows, plus first 2 chars of UCS-4 on POSIX).
-                        for (var n = 0; n < namePointers.Length; n++)
-                        {
-                            var nameContent = new byte[8];
-                            for (var b = 0; b < 8; b++)
-                                nameContent[b] = Marshal.ReadByte(namePointers[n], b);
-                            Console.Error.WriteLine(
-                                $"[SetProperties] n={n}   nameContent={Convert.ToHexString(nameContent)}"
-                            );
-                        }
-
                         var hr = setProps.SetProperties(
-                            nameArrayPtr,
-                            valueArrayPtr,
+                            nameHandle.AddrOfPinnedObject(),
+                            valuesPtr,
                             (uint)names.Length
                         );
-                        Console.Error.WriteLine($"[SetProperties] hr=0x{hr:X8}");
                         if (hr != HResult.Ok)
                         {
                             SetPropertiesFailed(_logger, hr);
@@ -652,7 +603,7 @@ public sealed class SevenZipCompressor : IDisposable
                     }
                     finally
                     {
-                        valuesHandle.Free();
+                        freeValues();
                     }
                 }
                 finally
@@ -670,6 +621,33 @@ public sealed class SevenZipCompressor : IDisposable
         }
 
         return Result.Ok();
+    }
+
+    // Returns a pointer to a contiguous array of PROPVARIANT values laid out at the platform's
+    // native stride, plus a freer to release any unmanaged allocation. On POSIX the managed
+    // 16-byte PropVariant[] array layout already matches 7-Zip's MyWindows.h PROPVARIANT, so
+    // we just pin it. On Windows we allocate a fresh buffer at 24-byte stride and copy each
+    // 16-byte PropVariant into the head of its slot, leaving the trailing 8 bytes zeroed.
+    private static (nint Ptr, Action Free) AllocPlatformValuesBuffer(PropVariant[] values)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            var handle = GCHandle.Alloc(values, GCHandleType.Pinned);
+            return (handle.AddrOfPinnedObject(), () => handle.Free());
+        }
+
+        const int winStride = 24;
+        const int managedSize = 16;
+        var buf = Marshal.AllocCoTaskMem(values.Length * winStride);
+        for (var i = 0; i < values.Length; i++)
+        {
+            var src = MemoryMarshal.AsBytes(values.AsSpan(i, 1));
+            for (var b = 0; b < managedSize; b++)
+                Marshal.WriteByte(buf + i * winStride + b, src[b]);
+            for (var b = managedSize; b < winStride; b++)
+                Marshal.WriteByte(buf + i * winStride + b, 0);
+        }
+        return (buf, () => Marshal.FreeCoTaskMem(buf));
     }
 
     // Opens the underlying FileStream lazily on the first Seek or Read call so
