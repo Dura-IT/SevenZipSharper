@@ -442,7 +442,10 @@ public sealed class SevenZipExtractor : IDisposable
         new ArchiveEntry
         {
             Index = (int)index,
-            Path = ReadStringProp(index, ItemPropId.Path) ?? string.Empty,
+            // ArchiveEntry.Path is documented as forward-slash separators, matching
+            // ZipArchiveEntry.FullName and the ZIP/7z spec convention. 7-Zip on Windows
+            // returns backslashes; normalize at the boundary so the contract holds on every OS.
+            Path = (ReadStringProp(index, ItemPropId.Path) ?? string.Empty).Replace('\\', '/'),
             Size = ReadUInt64Prop(index, ItemPropId.Size) ?? 0,
             PackedSize = ReadUInt64Prop(index, ItemPropId.PackedSize) ?? 0,
             Crc = ReadUInt32Prop(index, ItemPropId.Crc) ?? 0,
