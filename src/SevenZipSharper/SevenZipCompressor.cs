@@ -566,6 +566,19 @@ public sealed class SevenZipCompressor : IDisposable
         if (names.Length == 0)
             return Result.Ok();
 
+        // DIAGNOSTIC (temporary, remove before merging to main): dump what we send to
+        // SetProperties so we can compare wire bytes against the Win32 PROPVARIANT spec.
+        Console.Error.WriteLine($"[SetProperties] count={names.Length} format={_format}");
+        for (var d = 0; d < names.Length; d++)
+        {
+            var structBytes = System.Runtime.InteropServices.MemoryMarshal.AsBytes(
+                values.AsSpan(d, 1)
+            );
+            Console.Error.WriteLine(
+                $"[SetProperties] i={d} name='{names[d]}' vt={values[d].VarType} valueBytes={Convert.ToHexString(structBytes)}"
+            );
+        }
+
         var namePointers = new nint[names.Length];
         try
         {
@@ -580,11 +593,29 @@ public sealed class SevenZipCompressor : IDisposable
                     var valuesHandle = GCHandle.Alloc(values, GCHandleType.Pinned);
                     try
                     {
+                        // DIAGNOSTIC (temporary): dump the actual wire-side array bytes
+                        // from the pinned addresses to test H2/H3 (pinned-address quirks).
+                        var nameArrayPtr = nameHandle.AddrOfPinnedObject();
+                        var valueArrayPtr = valuesHandle.AddrOfPinnedObject();
+                        var nameBytes = new byte[names.Length * 8];
+                        for (var b = 0; b < nameBytes.Length; b++)
+                            nameBytes[b] = Marshal.ReadByte(nameArrayPtr, b);
+                        var valueBytes = new byte[names.Length * 16];
+                        for (var b = 0; b < valueBytes.Length; b++)
+                            valueBytes[b] = Marshal.ReadByte(valueArrayPtr, b);
+                        Console.Error.WriteLine(
+                            $"[SetProperties] namesArrayBytes={Convert.ToHexString(nameBytes)}"
+                        );
+                        Console.Error.WriteLine(
+                            $"[SetProperties] valuesArrayBytes={Convert.ToHexString(valueBytes)}"
+                        );
+
                         var hr = setProps.SetProperties(
-                            nameHandle.AddrOfPinnedObject(),
-                            valuesHandle.AddrOfPinnedObject(),
+                            nameArrayPtr,
+                            valueArrayPtr,
                             (uint)names.Length
                         );
+                        Console.Error.WriteLine($"[SetProperties] hr=0x{hr:X8}");
                         if (hr != HResult.Ok)
                         {
                             SetPropertiesFailed(_logger, hr);
