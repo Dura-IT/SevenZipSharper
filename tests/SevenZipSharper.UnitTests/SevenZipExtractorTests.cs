@@ -402,6 +402,227 @@ public sealed class SevenZipExtractorTests
         }
     }
 
+    // ── ObjectDisposedException guards ────────────────────────────────────
+
+    [Test]
+    public async Task OpenAsync_WhenDisposed_ThrowsObjectDisposedException()
+    {
+        var extractor = CreateExtractor();
+        extractor.Dispose();
+
+        await FluentActions
+            .Awaiting(() => extractor.OpenAsync())
+            .Should()
+            .ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Test]
+    public async Task ListEntriesAsync_WhenDisposed_ThrowsObjectDisposedException()
+    {
+        var extractor = CreateExtractor();
+        extractor.Dispose();
+
+        await FluentActions
+            .Awaiting(() => extractor.ListEntriesAsync())
+            .Should()
+            .ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Test]
+    public async Task ExtractAllAsync_WhenDisposed_ThrowsObjectDisposedException()
+    {
+        var extractor = CreateExtractor();
+        extractor.Dispose();
+
+        await FluentActions
+            .Awaiting(() => extractor.ExtractAllAsync(Path.GetTempPath()))
+            .Should()
+            .ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Test]
+    public async Task ExtractEntryAsync_WhenDisposed_ThrowsObjectDisposedException()
+    {
+        var extractor = CreateExtractor();
+        extractor.Dispose();
+
+        await FluentActions
+            .Awaiting(() => extractor.ExtractEntryAsync(TestEntry(), new MemoryStream()))
+            .Should()
+            .ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Test]
+    public async Task ExtractAsync_WithFilter_WhenDisposed_ThrowsObjectDisposedException()
+    {
+        var extractor = CreateExtractor();
+        extractor.Dispose();
+
+        await FluentActions
+            .Awaiting(() => extractor.ExtractAsync(_ => true, Path.GetTempPath()))
+            .Should()
+            .ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Test]
+    public async Task ExtractAsync_WithPrebuiltEntries_WhenDisposed_ThrowsObjectDisposedException()
+    {
+        var extractor = CreateExtractor();
+        extractor.Dispose();
+
+        await FluentActions
+            .Awaiting(() =>
+                extractor.ExtractAsync(new List<ArchiveEntry>(), _ => true, Path.GetTempPath())
+            )
+            .Should()
+            .ThrowAsync<ObjectDisposedException>();
+    }
+
+    // ── Not-opened guards ─────────────────────────────────────────────────
+
+    [Test]
+    public async Task ExtractAsync_WithFilter_ReturnsFail_WhenOpenAsyncNotCalled()
+    {
+        using var extractor = CreateExtractor();
+
+        var result = await extractor.ExtractAsync(_ => true, Path.GetTempPath());
+
+        result.IsFailed.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ExtractAsync_WithPrebuiltEntries_ReturnsFail_WhenOpenAsyncNotCalled()
+    {
+        using var extractor = CreateExtractor();
+
+        var result = await extractor.ExtractAsync(
+            new List<ArchiveEntry>(),
+            _ => true,
+            Path.GetTempPath()
+        );
+
+        result.IsFailed.Should().BeTrue();
+    }
+
+    // ── GetNumberOfItems failure ───────────────────────────────────────────
+
+    [Test]
+    public async Task ListEntriesAsync_ReturnsFail_WhenGetNumberOfItemsFails()
+    {
+        using var extractor = CreateExtractor(
+            new FakeArchiveForExtraction(getNumberOfItemsHResult: HResult.NotImplemented)
+        );
+        await extractor.OpenAsync();
+
+        var result = await extractor.ListEntriesAsync();
+
+        result.IsFailed.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ExtractAllAsync_ReturnsFail_WhenGetNumberOfItemsFails()
+    {
+        using var extractor = CreateExtractor(
+            new FakeArchiveForExtraction(getNumberOfItemsHResult: HResult.NotImplemented)
+        );
+        await extractor.OpenAsync();
+
+        var result = await extractor.ExtractAllAsync(Path.GetTempPath());
+
+        result.IsFailed.Should().BeTrue();
+    }
+
+    // ── Extract HRESULT failure ───────────────────────────────────────────
+
+    [Test]
+    public async Task ExtractAllAsync_ReturnsFail_WhenExtractReturnsError()
+    {
+        using var extractor = CreateExtractor(
+            new FakeArchiveForExtraction(
+                entries: new[] { ("file.txt", false) },
+                extractHResult: HResult.NotImplemented
+            )
+        );
+        await extractor.OpenAsync();
+
+        var result = await extractor.ExtractAllAsync(Path.GetTempPath());
+
+        result.IsFailed.Should().BeTrue();
+    }
+
+    // ── Cancellation propagation ──────────────────────────────────────────
+
+    [Test]
+    public async Task ExtractAllAsync_PropagatesCancellation()
+    {
+        using var extractor = CreateExtractor();
+        await extractor.OpenAsync();
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync().ConfigureAwait(false);
+
+        await FluentActions
+            .Awaiting(() =>
+                extractor.ExtractAllAsync(Path.GetTempPath(), cancellationToken: cts.Token)
+            )
+            .Should()
+            .ThrowAsync<OperationCanceledException>();
+    }
+
+    [Test]
+    public async Task ExtractAsync_WithFilter_PropagatesCancellation()
+    {
+        using var extractor = CreateExtractor();
+        await extractor.OpenAsync();
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync().ConfigureAwait(false);
+
+        await FluentActions
+            .Awaiting(() =>
+                extractor.ExtractAsync(_ => true, Path.GetTempPath(), cancellationToken: cts.Token)
+            )
+            .Should()
+            .ThrowAsync<OperationCanceledException>();
+    }
+
+    [Test]
+    public async Task ExtractAsync_WithPrebuiltEntries_PropagatesCancellation()
+    {
+        using var extractor = CreateExtractor();
+        await extractor.OpenAsync();
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync().ConfigureAwait(false);
+
+        await FluentActions
+            .Awaiting(() =>
+                extractor.ExtractAsync(
+                    new List<ArchiveEntry>(),
+                    _ => true,
+                    Path.GetTempPath(),
+                    cancellationToken: cts.Token
+                )
+            )
+            .Should()
+            .ThrowAsync<OperationCanceledException>();
+    }
+
+    // ── ExtractAsync(prebuilt entries) failure ────────────────────────────
+
+    [Test]
+    public async Task ExtractAsync_WithPrebuiltEntries_ReturnsFail_WhenExtractFails()
+    {
+        var archive = new FakeArchiveForExtraction(
+            entries: new[] { ("file.txt", false) },
+            extractHResult: HResult.NotImplemented
+        );
+        using var extractor = CreateExtractor(archive);
+        await extractor.OpenAsync();
+        var entries = new List<ArchiveEntry> { TestEntry(0, "file.txt") };
+
+        var result = await extractor.ExtractAsync(entries, _ => true, Path.GetTempPath());
+
+        result.IsFailed.Should().BeTrue();
+    }
+
     // ── Dispose ────────────────────────────────────────────────────────────
 
     [Test]
@@ -424,15 +645,19 @@ internal sealed partial class FakeArchiveForExtraction : IInArchive
     private readonly (string Path, bool IsDirectory)[] _entries;
     private readonly Action<IArchiveExtractCallback, uint>? _extractCallback;
 
+    private readonly int _getNumberOfItemsHResult;
+
     internal FakeArchiveForExtraction(
         int openHResult = HResult.Ok,
         (string Path, bool IsDirectory)[]? entries = null,
         Action<IArchiveExtractCallback, uint>? extractCallback = null,
-        int extractHResult = HResult.Ok
+        int extractHResult = HResult.Ok,
+        int getNumberOfItemsHResult = HResult.Ok
     )
     {
         _openHResult = openHResult;
         _extractHResult = extractHResult;
+        _getNumberOfItemsHResult = getNumberOfItemsHResult;
         _entries = entries ?? Array.Empty<(string, bool)>();
         _extractCallback = extractCallback;
     }
@@ -447,8 +672,8 @@ internal sealed partial class FakeArchiveForExtraction : IInArchive
 
     public int GetNumberOfItems(out uint numItems)
     {
-        numItems = (uint)_entries.Length;
-        return HResult.Ok;
+        numItems = _getNumberOfItemsHResult == HResult.Ok ? (uint)_entries.Length : 0;
+        return _getNumberOfItemsHResult;
     }
 
     public int GetProperty(uint index, ItemPropId propId, nint value)

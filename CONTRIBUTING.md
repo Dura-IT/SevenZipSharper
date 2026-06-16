@@ -49,6 +49,10 @@ New code must include tests. Method naming convention: `MethodName_Scenario_Expe
 For significant changes — new public API, architectural decisions, format additions —
 open an issue first to discuss the approach before investing time in an implementation.
 
+If you are working on the interop layer (COM interfaces, marshalling, native
+library loading), read [ARCHITECTURE.md](ARCHITECTURE.md) first. The cross-platform
+PROPVARIANT, BSTR, and wchar_t details are non-obvious and have caused real bugs.
+
 ## Reporting bugs
 
 Open a [GitHub issue](https://github.com/Dura-IT/SevenZipSharper/issues). For security

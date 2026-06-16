@@ -58,14 +58,28 @@ jobs:
         run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
 
   # Compiles the full solution and runs integration tests against the real
-  # native 7-Zip library on each supported OS. No Sonar wrap and no coverage —
-  # this matrix exists to catch cross-platform interop regressions.
+  # native 7-Zip library on each supported OS/RID. No Sonar wrap and no
+  # coverage — this matrix exists to catch cross-platform interop regressions.
+  # Covers all six shipped RIDs: linux-x64, linux-arm64, win-x64, win-arm64,
+  # osx-arm64, osx-x64.
   integration-tests:
-    name: build + integration-tests (${{ matrix.os }})
+    name: build + integration-tests (${{ matrix.rid }})
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+          - os: windows-latest
+            rid: win-x64
+          - os: windows-11-arm
+            rid: win-arm64
+          - os: macos-latest
+            rid: osx-arm64
+          - os: macos-13
+            rid: osx-x64
     runs-on: ${{ matrix.os }}
 
     steps:

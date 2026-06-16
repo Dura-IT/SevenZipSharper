@@ -177,6 +177,39 @@ public sealed class SevenZipCompressorAppendTests
     // run before the native archive creation, so no native library is required).
 
     [Test]
+    public async Task AppendAsync_ReturnsOk_WhenUpdateItemsSucceeds()
+    {
+        var outArchive = new FakeOutArchive();
+        using var compressor = CreateCompressor(outArchive);
+        var output = new MemoryStream();
+
+        var result = await compressor.AppendAsync(
+            new FakeInArchiveForAppend(),
+            outArchive,
+            1u,
+            OneNewEntry(),
+            output
+        );
+
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task CompressMultiVolumeAsync_ReturnsOk_WhenUpdateItemsSucceeds()
+    {
+        var outArchive = new FakeOutArchive();
+        using var compressor = CreateCompressor(outArchive);
+
+        var result = await compressor.CompressMultiVolumeAsync(
+            OneNewEntry(),
+            _ => new MemoryStream(),
+            1024 * 1024
+        );
+
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Test]
     public async Task AppendAsync_Public_ReturnsFail_WhenParametersInvalid()
     {
         var invalidParams = CompressionParameters.Default with { ThreadCount = 0 };

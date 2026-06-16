@@ -84,6 +84,18 @@ public sealed class SevenZipCompressorFilesTests
     }
 
     [Test]
+    public async Task CompressFilesAsync_ReturnsOk_WhenUpdateItemsSucceeds()
+    {
+        var file = CreateTempFile("ok.txt");
+        using var compressor = CreateCompressor(new FakeOutArchive());
+        var output = new MemoryStream();
+
+        var result = await compressor.CompressFilesAsync(new[] { file }, _tempDir, output);
+
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Test]
     public async Task CompressFilesAsync_ReturnsFail_WhenParametersInvalid()
     {
         var file = CreateTempFile("c.txt");
