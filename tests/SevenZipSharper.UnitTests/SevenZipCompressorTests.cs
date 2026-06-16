@@ -32,6 +32,7 @@ public sealed class SevenZipCompressorTests
     }
 
     private static readonly byte[] _sampleContent = { 1, 2, 3 };
+    private static readonly string[] _singleFilePath = { "anything" };
 
     private static (string EntryPath, Stream Data)[] OneEntry() =>
         new[] { ("file.txt", (Stream)new MemoryStream(_sampleContent)) };
@@ -230,7 +231,7 @@ public sealed class SevenZipCompressorTests
         await FluentActions
             .Awaiting(() =>
                 compressor.CompressFilesAsync(
-                    new[] { "anything" },
+                    _singleFilePath,
                     System.IO.Path.GetTempPath(),
                     new MemoryStream()
                 )

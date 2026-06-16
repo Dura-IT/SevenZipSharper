@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
 using System.Threading;
 using SevenZipSharper.Interop;
 using SevenZipSharper.Interop.Archive;
@@ -9,7 +10,10 @@ using SevenZipSharper.Interop.Streams;
 
 namespace SevenZipSharper.Compression;
 
-internal abstract class CompressionHandlerBase : IArchiveUpdateCallback, ICryptoGetTextPassword2
+[GeneratedComClass]
+internal abstract partial class CompressionHandlerBase
+    : IArchiveUpdateCallback,
+        ICryptoGetTextPassword2
 {
     private readonly IReadOnlyList<(string EntryPath, Stream Data)> _entries;
     private readonly IProgress<CompressionProgress>? _progress;
