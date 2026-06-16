@@ -454,10 +454,50 @@ public sealed class SevenZipExtractor : IDisposable
             Attributes = ReadUInt32Prop(index, ItemPropId.Attributes),
         };
 
+    // Calls native GetProperty into a 24-byte stack buffer (worst-case PROPVARIANT size:
+    // Windows propidlbase.h is 24 on x64; POSIX 7-Zip MyWindows.h is 16 on x64). The first
+    // 16 bytes are copied into a PropVariant, which is all our managed struct holds.
+    [ExcludeFromCodeCoverage(
+        Justification = "Unsafe stackalloc + Marshal pointer bridge; exercised by every property read in the integration test matrix."
+    )]
+    private unsafe int GetPropertyNative(uint index, ItemPropId propId, out PropVariant prop)
+    {
+        Span<byte> buf = stackalloc byte[24];
+        buf.Clear();
+        int hr;
+        fixed (byte* p = buf)
+            hr = _archive.GetProperty(index, propId, (nint)p);
+        prop = new PropVariant();
+        if (hr == HResult.Ok)
+        {
+            var dest = MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref prop, 1));
+            buf[..16].CopyTo(dest);
+        }
+        return hr;
+    }
+
+    [ExcludeFromCodeCoverage(
+        Justification = "Unsafe stackalloc + Marshal pointer bridge; exercised by every archive-level property read in the integration test matrix."
+    )]
+    private unsafe int GetArchivePropertyNative(ItemPropId propId, out PropVariant prop)
+    {
+        Span<byte> buf = stackalloc byte[24];
+        buf.Clear();
+        int hr;
+        fixed (byte* p = buf)
+            hr = _archive.GetArchiveProperty(propId, (nint)p);
+        prop = new PropVariant();
+        if (hr == HResult.Ok)
+        {
+            var dest = MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref prop, 1));
+            buf[..16].CopyTo(dest);
+        }
+        return hr;
+    }
+
     private bool? ReadBoolProp(uint index, ItemPropId propId)
     {
-        var prop = new PropVariant();
-        var hr = _archive.GetProperty(index, propId, ref prop);
+        var hr = GetPropertyNative(index, propId, out var prop);
         var value = hr == HResult.Ok ? prop.ToBoolean() : null;
         prop.Clear();
         return value;
@@ -465,8 +505,7 @@ public sealed class SevenZipExtractor : IDisposable
 
     private string? ReadStringProp(uint index, ItemPropId propId)
     {
-        var prop = new PropVariant();
-        var hr = _archive.GetProperty(index, propId, ref prop);
+        var hr = GetPropertyNative(index, propId, out var prop);
         var value = hr == HResult.Ok ? prop.ToStringValue() : null;
         prop.Clear();
         return value;
@@ -474,8 +513,7 @@ public sealed class SevenZipExtractor : IDisposable
 
     private ulong? ReadUInt64Prop(uint index, ItemPropId propId)
     {
-        var prop = new PropVariant();
-        var hr = _archive.GetProperty(index, propId, ref prop);
+        var hr = GetPropertyNative(index, propId, out var prop);
         var value = hr == HResult.Ok ? prop.ToUInt64() : null;
         prop.Clear();
         return value;
@@ -483,8 +521,7 @@ public sealed class SevenZipExtractor : IDisposable
 
     private uint? ReadUInt32Prop(uint index, ItemPropId propId)
     {
-        var prop = new PropVariant();
-        var hr = _archive.GetProperty(index, propId, ref prop);
+        var hr = GetPropertyNative(index, propId, out var prop);
         var value = hr == HResult.Ok ? prop.ToUInt32() : null;
         prop.Clear();
         return value;
@@ -492,8 +529,7 @@ public sealed class SevenZipExtractor : IDisposable
 
     private DateTime? ReadDateTimeProp(uint index, ItemPropId propId)
     {
-        var prop = new PropVariant();
-        var hr = _archive.GetProperty(index, propId, ref prop);
+        var hr = GetPropertyNative(index, propId, out var prop);
         var value = hr == HResult.Ok ? prop.ToDateTime() : null;
         prop.Clear();
         return value;
@@ -501,8 +537,7 @@ public sealed class SevenZipExtractor : IDisposable
 
     private bool? ReadBoolArchiveProp(ItemPropId propId)
     {
-        var prop = new PropVariant();
-        var hr = _archive.GetArchiveProperty(propId, ref prop);
+        var hr = GetArchivePropertyNative(propId, out var prop);
         var value = hr == HResult.Ok ? prop.ToBoolean() : null;
         prop.Clear();
         return value;
@@ -510,8 +545,7 @@ public sealed class SevenZipExtractor : IDisposable
 
     private string? ReadStringArchiveProp(ItemPropId propId)
     {
-        var prop = new PropVariant();
-        var hr = _archive.GetArchiveProperty(propId, ref prop);
+        var hr = GetArchivePropertyNative(propId, out var prop);
         var value = hr == HResult.Ok ? prop.ToStringValue() : null;
         prop.Clear();
         return value;
@@ -519,8 +553,7 @@ public sealed class SevenZipExtractor : IDisposable
 
     private ulong? ReadUInt64ArchiveProp(ItemPropId propId)
     {
-        var prop = new PropVariant();
-        var hr = _archive.GetArchiveProperty(propId, ref prop);
+        var hr = GetArchivePropertyNative(propId, out var prop);
         var value = hr == HResult.Ok ? prop.ToUInt64() : null;
         prop.Clear();
         return value;
@@ -528,8 +561,7 @@ public sealed class SevenZipExtractor : IDisposable
 
     private uint? ReadUInt32ArchiveProp(ItemPropId propId)
     {
-        var prop = new PropVariant();
-        var hr = _archive.GetArchiveProperty(propId, ref prop);
+        var hr = GetArchivePropertyNative(propId, out var prop);
         var value = hr == HResult.Ok ? prop.ToUInt32() : null;
         prop.Clear();
         return value;

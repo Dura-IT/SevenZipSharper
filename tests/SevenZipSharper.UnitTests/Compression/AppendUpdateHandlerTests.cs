@@ -245,14 +245,19 @@ internal sealed partial class FakeInArchiveForAppend : IInArchive
         return HResult.Ok;
     }
 
-    public int GetProperty(uint index, ItemPropId propId, ref PropVariant value)
+    public int GetProperty(uint index, ItemPropId propId, nint value)
     {
-        value = propId switch
+        var prop = propId switch
         {
             ItemPropId.Path => PropVariant.FromString(_path),
             ItemPropId.IsDirectory => PropVariant.FromBoolean(false),
             _ => new PropVariant(),
         };
+        var bytes = System.Runtime.InteropServices.MemoryMarshal.AsBytes(
+            System.Runtime.InteropServices.MemoryMarshal.CreateSpan(ref prop, 1)
+        );
+        for (var i = 0; i < bytes.Length; i++)
+            System.Runtime.InteropServices.Marshal.WriteByte(value, i, bytes[i]);
         return HResult.Ok;
     }
 
@@ -263,7 +268,7 @@ internal sealed partial class FakeInArchiveForAppend : IInArchive
         IArchiveExtractCallback extractCallback
     ) => HResult.Ok;
 
-    public int GetArchiveProperty(ItemPropId propId, ref PropVariant value) => HResult.Ok;
+    public int GetArchiveProperty(ItemPropId propId, nint value) => HResult.Ok;
 
     public int GetNumberOfProperties(out uint numProps)
     {

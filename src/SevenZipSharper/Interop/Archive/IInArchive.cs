@@ -22,8 +22,14 @@ internal partial interface IInArchive
     [PreserveSig]
     int GetNumberOfItems(out uint numItems);
 
+    // value is a raw pointer to a PROPVARIANT-sized buffer. We pass nint instead of
+    // ref PropVariant because Windows' propidlbase.h PROPVARIANT is 24 bytes on x64 while
+    // our managed PropVariant struct is 16 bytes (matching POSIX 7-Zip's MyWindows.h
+    // PROPVARIANT); a ref into a 16-byte struct would let native overflow into adjacent
+    // memory on Windows. Callers should stackalloc 24 bytes (worst case across both
+    // platforms) and zero before the call.
     [PreserveSig]
-    int GetProperty(uint index, ItemPropId propId, ref PropVariant value);
+    int GetProperty(uint index, ItemPropId propId, nint value);
 
     [PreserveSig]
     int Extract(
@@ -33,8 +39,9 @@ internal partial interface IInArchive
         IArchiveExtractCallback extractCallback
     );
 
+    // See GetProperty for why this takes nint, not ref PropVariant.
     [PreserveSig]
-    int GetArchiveProperty(ItemPropId propId, ref PropVariant value);
+    int GetArchiveProperty(ItemPropId propId, nint value);
 
     [PreserveSig]
     int GetNumberOfProperties(out uint numProps);
