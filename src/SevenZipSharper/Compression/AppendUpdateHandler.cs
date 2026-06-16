@@ -53,11 +53,19 @@ internal sealed partial class AppendUpdateHandler
         return HResult.Ok;
     }
 
-    protected override int OnGetExistingProperty(
+    // `value` is a managed ref into a native-provided buffer (platform-sized PROPVARIANT —
+    // 24 bytes on Windows, 16 on POSIX). Forward the raw address to the in-archive's
+    // GetProperty(nint) so its write lands directly in that buffer with the correct stride.
+    protected override unsafe int OnGetExistingProperty(
         uint index,
         ItemPropId propId,
         ref PropVariant value
-    ) => _existingArchive.GetProperty(index, propId, ref value);
+    ) =>
+        _existingArchive.GetProperty(
+            index,
+            propId,
+            (nint)System.Runtime.CompilerServices.Unsafe.AsPointer(ref value)
+        );
 
     protected override int OnGetExistingStream(uint index, out ISequentialInStream? inStream)
     {
