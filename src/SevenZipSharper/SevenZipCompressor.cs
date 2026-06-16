@@ -577,6 +577,21 @@ public sealed class SevenZipCompressor : IDisposable
             Console.Error.WriteLine(
                 $"[SetProperties] i={d} name='{names[d]}' vt={values[d].VarType} valueBytes={Convert.ToHexString(structBytes)}"
             );
+            // If VT_BSTR (8), dereference and dump length prefix + content
+            if (values[d].VarType == 8)
+            {
+                var bstrPtr = System.Runtime.InteropServices.MemoryMarshal.Read<nint>(
+                    structBytes.Slice(8, 8)
+                );
+                var lenPrefix = Marshal.ReadInt32(bstrPtr - 4);
+                var contentLen = Math.Min(Math.Max(lenPrefix, 0) + 4, 32);
+                var content = new byte[contentLen];
+                for (var b = 0; b < contentLen; b++)
+                    content[b] = Marshal.ReadByte(bstrPtr, b);
+                Console.Error.WriteLine(
+                    $"[SetProperties] i={d}   bstrLen={lenPrefix} bstrContent={Convert.ToHexString(content)}"
+                );
+            }
         }
 
         var namePointers = new nint[names.Length];
