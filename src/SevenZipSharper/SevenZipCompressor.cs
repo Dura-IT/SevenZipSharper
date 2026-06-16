@@ -624,6 +624,17 @@ public sealed class SevenZipCompressor : IDisposable
                         Console.Error.WriteLine(
                             $"[SetProperties] valuesArrayBytes={Convert.ToHexString(valueBytes)}"
                         );
+                        // Dereference each name pointer and dump 8 bytes (covers "x\0" UTF-16 + slack
+                        // on Windows, plus first 2 chars of UCS-4 on POSIX).
+                        for (var n = 0; n < namePointers.Length; n++)
+                        {
+                            var nameContent = new byte[8];
+                            for (var b = 0; b < 8; b++)
+                                nameContent[b] = Marshal.ReadByte(namePointers[n], b);
+                            Console.Error.WriteLine(
+                                $"[SetProperties] n={n}   nameContent={Convert.ToHexString(nameContent)}"
+                            );
+                        }
 
                         var hr = setProps.SetProperties(
                             nameArrayPtr,
