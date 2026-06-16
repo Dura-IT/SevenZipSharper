@@ -13,8 +13,7 @@ namespace SevenZipSharper.Compression;
 [GeneratedComClass]
 internal sealed partial class MultiVolumeCompressionHandler
     : CompressionHandlerBase,
-        IArchiveUpdateCallback2,
-        ICryptoGetTextPassword2
+        IArchiveUpdateCallback2
 {
     private readonly Func<int, Stream> _volumeStreamFactory;
     private readonly ulong _maxVolumeBytes;
@@ -33,26 +32,6 @@ internal sealed partial class MultiVolumeCompressionHandler
         _maxVolumeBytes = maxVolumeBytes;
     }
 
-    int IProgress.SetTotal(ulong total) => OnSetTotal(total);
-
-    int IProgress.SetCompleted(nint completeValue) => OnSetCompleted(completeValue);
-
-    int IArchiveUpdateCallback.GetUpdateItemInfo(
-        uint index,
-        nint newData,
-        nint newProperties,
-        nint indexInArchive
-    ) => OnGetUpdateItemInfo(index, newData, newProperties, indexInArchive);
-
-    int IArchiveUpdateCallback.GetProperty(uint index, ItemPropId propId, ref PropVariant value) =>
-        OnGetProperty(index, propId, ref value);
-
-    int IArchiveUpdateCallback.GetStream(uint index, out ISequentialInStream? inStream) =>
-        OnGetStream(index, out inStream);
-
-    int IArchiveUpdateCallback.SetOperationResult(OperationResult result) =>
-        OnSetOperationResult(result);
-
     int IArchiveUpdateCallback2.GetVolumeSize(uint index, nint size)
     {
         if (size != nint.Zero)
@@ -66,9 +45,4 @@ internal sealed partial class MultiVolumeCompressionHandler
         volumeStream = new OutStreamAdapter(stream);
         return HResult.Ok;
     }
-
-    int ICryptoGetTextPassword2.CryptoGetTextPassword2(
-        out int passwordIsDefined,
-        out string password
-    ) => OnGetPassword(out passwordIsDefined, out password);
 }

@@ -463,6 +463,11 @@ public sealed class SevenZipExtractor : IDisposable
     [ExcludeFromCodeCoverage(
         Justification = "Unsafe stackalloc + Marshal pointer bridge; exercised by every property read in the integration test matrix."
     )]
+    [SuppressMessage(
+        "Security",
+        "S6640:Make sure that using \"unsafe\" is safe here.",
+        Justification = "Required to obtain a pointer to a stack-allocated 24-byte PROPVARIANT buffer so we can pass it to IInArchive.GetProperty. The buffer is local, the pointer never escapes the fixed block, and the bytes copied back are bounded by buf[..16]. See [[project-interop-gotchas]] round 3 for the size rationale."
+    )]
     private unsafe int GetPropertyNative(uint index, ItemPropId propId, out PropVariant prop)
     {
         Span<byte> buf = stackalloc byte[24];
@@ -481,6 +486,11 @@ public sealed class SevenZipExtractor : IDisposable
 
     [ExcludeFromCodeCoverage(
         Justification = "Unsafe stackalloc + Marshal pointer bridge; exercised by every archive-level property read in the integration test matrix."
+    )]
+    [SuppressMessage(
+        "Security",
+        "S6640:Make sure that using \"unsafe\" is safe here.",
+        Justification = "Required to obtain a pointer to a stack-allocated 24-byte PROPVARIANT buffer so we can pass it to IInArchive.GetArchiveProperty. The buffer is local, the pointer never escapes the fixed block, and the bytes copied back are bounded by buf[..16]. See [[project-interop-gotchas]] round 3 for the size rationale."
     )]
     private unsafe int GetArchivePropertyNative(ItemPropId propId, out PropVariant prop)
     {

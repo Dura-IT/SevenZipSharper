@@ -9,7 +9,7 @@ using SevenZipSharper.Interop.Streams;
 
 namespace SevenZipSharper.Compression;
 
-internal abstract class CompressionHandlerBase
+internal abstract class CompressionHandlerBase : IArchiveUpdateCallback, ICryptoGetTextPassword2
 {
     private readonly IReadOnlyList<(string EntryPath, Stream Data)> _entries;
     private readonly IProgress<CompressionProgress>? _progress;
@@ -58,13 +58,13 @@ internal abstract class CompressionHandlerBase
         return HResult.Ok;
     }
 
-    protected int OnSetTotal(ulong total)
+    int IProgress.SetTotal(ulong total)
     {
         _totalBytes = total;
         return HResult.Ok;
     }
 
-    protected int OnSetCompleted(nint completeValue)
+    int IProgress.SetCompleted(nint completeValue)
     {
         if (_cancellationToken.IsCancellationRequested)
             return HResult.Abort;
@@ -91,7 +91,7 @@ internal abstract class CompressionHandlerBase
         return HResult.Ok;
     }
 
-    protected int OnGetUpdateItemInfo(
+    int IArchiveUpdateCallback.GetUpdateItemInfo(
         uint index,
         nint newData,
         nint newProperties,
@@ -110,7 +110,7 @@ internal abstract class CompressionHandlerBase
         return HResult.Ok;
     }
 
-    protected int OnGetProperty(uint index, ItemPropId propId, ref PropVariant value)
+    int IArchiveUpdateCallback.GetProperty(uint index, ItemPropId propId, ref PropVariant value)
     {
         value.Clear();
 
@@ -137,7 +137,7 @@ internal abstract class CompressionHandlerBase
         return HResult.Ok;
     }
 
-    protected int OnGetStream(uint index, out ISequentialInStream? inStream)
+    int IArchiveUpdateCallback.GetStream(uint index, out ISequentialInStream? inStream)
     {
         _activeEntryStream?.Dispose();
         _activeEntryStream = null;
@@ -161,13 +161,16 @@ internal abstract class CompressionHandlerBase
         return HResult.Ok;
     }
 
-    protected int OnSetOperationResult(OperationResult result)
+    int IArchiveUpdateCallback.SetOperationResult(OperationResult result)
     {
         _completedEntries++;
         return HResult.Ok;
     }
 
-    protected int OnGetPassword(out int passwordIsDefined, out string password)
+    int ICryptoGetTextPassword2.CryptoGetTextPassword2(
+        out int passwordIsDefined,
+        out string password
+    )
     {
         if (_password is null)
         {

@@ -31,8 +31,10 @@ public sealed class SevenZipCompressorTests
         );
     }
 
+    private static readonly byte[] _sampleContent = { 1, 2, 3 };
+
     private static (string EntryPath, Stream Data)[] OneEntry() =>
-        new[] { ("file.txt", (Stream)new MemoryStream(new byte[] { 1, 2, 3 })) };
+        new[] { ("file.txt", (Stream)new MemoryStream(_sampleContent)) };
 
     [Test]
     public async Task CompressAsync_CallsUpdateItems_WithCorrectCount()

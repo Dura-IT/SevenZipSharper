@@ -5,15 +5,11 @@ using System.Runtime.InteropServices.Marshalling;
 using System.Threading;
 using SevenZipSharper.Interop;
 using SevenZipSharper.Interop.Archive;
-using SevenZipSharper.Interop.Streams;
 
 namespace SevenZipSharper.Compression;
 
 [GeneratedComClass]
-internal sealed partial class CompressionHandler
-    : CompressionHandlerBase,
-        IArchiveUpdateCallback,
-        ICryptoGetTextPassword2
+internal sealed partial class CompressionHandler : CompressionHandlerBase, IArchiveUpdateCallback
 {
     internal CompressionHandler(
         IReadOnlyList<(string EntryPath, Stream Data)> entries,
@@ -23,29 +19,4 @@ internal sealed partial class CompressionHandler
         string? password = null
     )
         : base(entries, progress, cancellationToken, ownsEntryStreams, password: password) { }
-
-    int IProgress.SetTotal(ulong total) => OnSetTotal(total);
-
-    int IProgress.SetCompleted(nint completeValue) => OnSetCompleted(completeValue);
-
-    int IArchiveUpdateCallback.GetUpdateItemInfo(
-        uint index,
-        nint newData,
-        nint newProperties,
-        nint indexInArchive
-    ) => OnGetUpdateItemInfo(index, newData, newProperties, indexInArchive);
-
-    int IArchiveUpdateCallback.GetProperty(uint index, ItemPropId propId, ref PropVariant value) =>
-        OnGetProperty(index, propId, ref value);
-
-    int IArchiveUpdateCallback.GetStream(uint index, out ISequentialInStream? inStream) =>
-        OnGetStream(index, out inStream);
-
-    int IArchiveUpdateCallback.SetOperationResult(OperationResult result) =>
-        OnSetOperationResult(result);
-
-    int ICryptoGetTextPassword2.CryptoGetTextPassword2(
-        out int passwordIsDefined,
-        out string password
-    ) => OnGetPassword(out passwordIsDefined, out password);
 }

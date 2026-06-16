@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
@@ -11,10 +12,7 @@ using SevenZipSharper.Interop.Streams;
 namespace SevenZipSharper.Compression;
 
 [GeneratedComClass]
-internal sealed partial class AppendUpdateHandler
-    : CompressionHandlerBase,
-        IArchiveUpdateCallback,
-        ICryptoGetTextPassword2
+internal sealed partial class AppendUpdateHandler : CompressionHandlerBase, IArchiveUpdateCallback
 {
     private readonly IInArchive _existingArchive;
 
@@ -56,6 +54,11 @@ internal sealed partial class AppendUpdateHandler
     // `value` is a managed ref into a native-provided buffer (platform-sized PROPVARIANT —
     // 24 bytes on Windows, 16 on POSIX). Forward the raw address to the in-archive's
     // GetProperty(nint) so its write lands directly in that buffer with the correct stride.
+    [SuppressMessage(
+        "Security",
+        "S6640:Make sure that using \"unsafe\" is safe here.",
+        Justification = "Required to convert the managed ref-to-PROPVARIANT (which is itself a pointer into the native-provided platform-sized buffer) into a raw nint for the IInArchive.GetProperty(nint) signature. The buffer is owned by outer-native and survives the call. See [[project-interop-gotchas]] round 3."
+    )]
     protected override unsafe int OnGetExistingProperty(
         uint index,
         ItemPropId propId,
@@ -72,29 +75,4 @@ internal sealed partial class AppendUpdateHandler
         inStream = null;
         return HResult.Ok;
     }
-
-    int IProgress.SetTotal(ulong total) => OnSetTotal(total);
-
-    int IProgress.SetCompleted(nint completeValue) => OnSetCompleted(completeValue);
-
-    int IArchiveUpdateCallback.GetUpdateItemInfo(
-        uint index,
-        nint newData,
-        nint newProperties,
-        nint indexInArchive
-    ) => OnGetUpdateItemInfo(index, newData, newProperties, indexInArchive);
-
-    int IArchiveUpdateCallback.GetProperty(uint index, ItemPropId propId, ref PropVariant value) =>
-        OnGetProperty(index, propId, ref value);
-
-    int IArchiveUpdateCallback.GetStream(uint index, out ISequentialInStream? inStream) =>
-        OnGetStream(index, out inStream);
-
-    int IArchiveUpdateCallback.SetOperationResult(OperationResult result) =>
-        OnSetOperationResult(result);
-
-    int ICryptoGetTextPassword2.CryptoGetTextPassword2(
-        out int passwordIsDefined,
-        out string password
-    ) => OnGetPassword(out passwordIsDefined, out password);
 }
