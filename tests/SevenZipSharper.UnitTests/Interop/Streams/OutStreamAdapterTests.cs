@@ -12,7 +12,7 @@ namespace SevenZipSharper.UnitTests.Interop.Streams;
 public sealed class OutStreamAdapterTests
 {
     [Test]
-    public void Write_WritesDataToUnderlyingStream()
+    public void Write_WithValidData_WritesDataToUnderlyingStream()
     {
         using var stream = new MemoryStream();
         ISequentialOutStream adapter = new OutStreamAdapter(stream);
@@ -39,7 +39,7 @@ public sealed class OutStreamAdapterTests
     }
 
     [Test]
-    public void Seek_MovesUnderlyingStreamPosition()
+    public void Seek_WithValidOrigin_MovesUnderlyingStreamPosition()
     {
         using var stream = new MemoryStream(new byte[10]);
         IOutStream adapter = new OutStreamAdapter(stream);
@@ -82,7 +82,7 @@ public sealed class OutStreamAdapterTests
     }
 
     [Test]
-    public void SetSize_SetsLengthOnUnderlyingStream()
+    public void SetSize_WithPositiveSize_SetsLengthOnUnderlyingStream()
     {
         using var stream = new MemoryStream();
         IOutStream adapter = new OutStreamAdapter(stream);

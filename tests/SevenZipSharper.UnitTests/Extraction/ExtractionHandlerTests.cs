@@ -55,7 +55,7 @@ public sealed class ExtractionHandlerTests
         );
 
     [Test]
-    public void SetTotal_ReturnsOk()
+    public void SetTotal_WithAnyValue_ReturnsOk()
     {
         var handler = CreateHandler();
         IArchiveExtractCallback cb = handler;

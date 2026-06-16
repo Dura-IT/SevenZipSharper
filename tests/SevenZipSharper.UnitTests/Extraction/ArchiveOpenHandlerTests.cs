@@ -34,7 +34,7 @@ public sealed class ArchiveOpenHandlerTests
     }
 
     [Test]
-    public void SetTotal_ReturnsOk()
+    public void SetTotal_WithNullPointers_ReturnsOk()
     {
         var handler = new ArchiveOpenHandler();
         IArchiveOpenCallback cb = handler;
@@ -43,7 +43,7 @@ public sealed class ArchiveOpenHandlerTests
     }
 
     [Test]
-    public void SetCompleted_ReturnsOk()
+    public void SetCompleted_WithNullPointers_ReturnsOk()
     {
         var handler = new ArchiveOpenHandler();
         IArchiveOpenCallback cb = handler;

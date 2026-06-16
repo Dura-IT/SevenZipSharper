@@ -27,7 +27,7 @@ public sealed class FileEntryStreamTests
     }
 
     [Test]
-    public void Write_WritesDataToFile_AndReturnsOk()
+    public void Write_WithValidData_WritesDataToFileAndReturnsOk()
     {
         var path = Path.Combine(_tempDir, "out.bin");
         var data = new byte[] { 1, 2, 3, 4, 5 };
@@ -42,7 +42,7 @@ public sealed class FileEntryStreamTests
     }
 
     [Test]
-    public void Write_ReturnsFail_AndZeroProcessedSize_WhenStreamIsDisposed()
+    public void Write_WhenStreamIsDisposed_ReturnsFailAndZeroProcessedSize()
     {
         var path = Path.Combine(_tempDir, "disposed.bin");
         var stream = new FileEntryStream(path);
@@ -65,7 +65,7 @@ public sealed class FileEntryStreamTests
     }
 
     [Test]
-    public void Dispose_ClosesFileStream_AllowingAnotherWriterToOpen()
+    public void Dispose_WhenStreamIsOpen_AllowsAnotherWriterToOpen()
     {
         var path = Path.Combine(_tempDir, "reopen.bin");
         var stream = new FileEntryStream(path);

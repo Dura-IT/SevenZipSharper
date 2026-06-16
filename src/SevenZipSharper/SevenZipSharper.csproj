@@ -5,6 +5,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
     <Version>0.2.0</Version>
+    <Nullable>enable</Nullable>
     <PackageOutputPath>$(MSBuildThisFileDirectory)../../artifacts/packages/</PackageOutputPath>
     <PackageId>DuraIT.SevenZipSharper</PackageId>
     <Authors>Ben de Bruijn</Authors>

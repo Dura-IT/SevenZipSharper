@@ -30,7 +30,7 @@ public sealed unsafe class SevenZipBStrMarshallerTests
     }
 
     [Test]
-    public void ConvertToUnmanaged_Read_RoundTrip_EmptyString()
+    public void ConvertToUnmanaged_EmptyString_RoundTrips()
     {
         var ptr = SevenZipBStrMarshaller.ConvertToUnmanaged(string.Empty);
         try
@@ -44,7 +44,7 @@ public sealed unsafe class SevenZipBStrMarshallerTests
     }
 
     [Test]
-    public void ConvertToUnmanaged_Read_RoundTrip_SingleAsciiChar()
+    public void ConvertToUnmanaged_SingleAsciiChar_RoundTrips()
     {
         var ptr = SevenZipBStrMarshaller.ConvertToUnmanaged("x");
         try
@@ -58,7 +58,7 @@ public sealed unsafe class SevenZipBStrMarshallerTests
     }
 
     [Test]
-    public void ConvertToUnmanaged_Read_RoundTrip_MultiCharAscii()
+    public void ConvertToUnmanaged_MultiCharAscii_RoundTrips()
     {
         var ptr = SevenZipBStrMarshaller.ConvertToUnmanaged("password");
         try
@@ -72,7 +72,7 @@ public sealed unsafe class SevenZipBStrMarshallerTests
     }
 
     [Test]
-    public void ConvertToUnmanaged_Read_RoundTrip_BmpUnicode()
+    public void ConvertToUnmanaged_BmpUnicode_RoundTrips()
     {
         // U+00E9 (é), U+4E2D (中), U+00FC (ü) — BMP characters, safely representable.
         const string value = "é中ü";

@@ -44,7 +44,7 @@ public sealed class CompressionHandlerTests
         );
 
     [Test]
-    public void SetTotal_ReturnsOk()
+    public void SetTotal_WithAnyValue_ReturnsOk()
     {
         var handler = CreateHandler();
         IArchiveUpdateCallback cb = handler;
@@ -74,7 +74,7 @@ public sealed class CompressionHandlerTests
     }
 
     [Test]
-    public void SetCompleted_ReportsProgress()
+    public void SetCompleted_WithProgressCallback_ReportsProgress()
     {
         var reported = new List<CompressionProgress>();
         var progress = new SynchronousProgress<CompressionProgress>(p => reported.Add(p));

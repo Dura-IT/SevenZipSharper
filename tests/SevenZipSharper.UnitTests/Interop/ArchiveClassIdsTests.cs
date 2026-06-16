@@ -25,13 +25,13 @@ public sealed class ArchiveClassIdsTests
     }
 
     [Test]
-    public void AllClassIds_AreUnique()
+    public void AllClassIds_AcrossAllFormats_AreUnique()
     {
         AllClassIds().Should().OnlyHaveUniqueItems();
     }
 
     [Test]
-    public void AllClassIds_ShareExpectedPrefix()
+    public void AllClassIds_AcrossAllFormats_ShareExpectedPrefix()
     {
         foreach (var guid in AllClassIds())
             guid.ToString().Should().StartWith("23170f69-40c1-278a-1000-0001");

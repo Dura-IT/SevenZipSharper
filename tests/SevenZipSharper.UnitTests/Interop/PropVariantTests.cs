@@ -112,7 +112,7 @@ public sealed class PropVariantTests
     }
 
     [Test]
-    public void Clear_SetsVarTypeToEmpty()
+    public void Clear_WhenPopulated_SetsVarTypeToEmpty()
     {
         PropVariant pv = PropVariant.FromUInt32(99u);
 
@@ -122,7 +122,7 @@ public sealed class PropVariantTests
     }
 
     [Test]
-    public void Clear_FreesAndClearsBstr()
+    public void Clear_WhenHoldingBstr_FreesAndSetsEmpty()
     {
         PropVariant pv = PropVariant.FromString("temporary");
 

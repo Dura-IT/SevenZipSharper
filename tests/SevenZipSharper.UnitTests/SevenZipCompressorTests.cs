@@ -200,7 +200,7 @@ public sealed class SevenZipCompressorTests
     }
 
     [Test]
-    public void Dispose_IsIdempotent()
+    public void Dispose_CalledTwice_DoesNotThrow()
     {
         var compressor = CreateCompressor();
 

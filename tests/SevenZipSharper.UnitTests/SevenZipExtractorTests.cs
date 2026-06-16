@@ -405,7 +405,7 @@ public sealed class SevenZipExtractorTests
     // ── Dispose ────────────────────────────────────────────────────────────
 
     [Test]
-    public void Dispose_IsIdempotent()
+    public void Dispose_CalledTwice_DoesNotThrow()
     {
         var extractor = CreateExtractor();
         extractor.Dispose();

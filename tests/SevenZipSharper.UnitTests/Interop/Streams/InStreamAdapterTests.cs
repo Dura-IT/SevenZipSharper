@@ -12,7 +12,7 @@ namespace SevenZipSharper.UnitTests.Interop.Streams;
 public sealed class InStreamAdapterTests
 {
     [Test]
-    public void Read_ReturnsDataFromUnderlyingStream()
+    public void Read_WithSufficientData_ReturnsDataFromUnderlyingStream()
     {
         var content = Encoding.UTF8.GetBytes("hello");
         using var stream = new MemoryStream(content);
@@ -52,7 +52,7 @@ public sealed class InStreamAdapterTests
     }
 
     [Test]
-    public void Seek_MovesUnderlyingStreamPosition()
+    public void Seek_WithValidOrigin_MovesUnderlyingStreamPosition()
     {
         using var stream = new MemoryStream(new byte[10]);
         IInStream adapter = new InStreamAdapter(stream);

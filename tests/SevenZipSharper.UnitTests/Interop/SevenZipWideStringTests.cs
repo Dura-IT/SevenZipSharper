@@ -10,7 +10,7 @@ namespace SevenZipSharper.UnitTests.Interop;
 public sealed class SevenZipWideStringTests
 {
     [Test]
-    public void Alloc_Read_RoundTrip_EmptyString()
+    public void Alloc_EmptyString_RoundTrips()
     {
         var ptr = SevenZipWideString.Alloc(string.Empty);
         try
@@ -24,7 +24,7 @@ public sealed class SevenZipWideStringTests
     }
 
     [Test]
-    public void Alloc_Read_RoundTrip_SingleAsciiChar()
+    public void Alloc_SingleAsciiChar_RoundTrips()
     {
         var ptr = SevenZipWideString.Alloc("x");
         try
@@ -38,7 +38,7 @@ public sealed class SevenZipWideStringTests
     }
 
     [Test]
-    public void Alloc_Read_RoundTrip_MultiCharAscii()
+    public void Alloc_MultiCharAscii_RoundTrips()
     {
         var ptr = SevenZipWideString.Alloc("LZMA");
         try
@@ -52,7 +52,7 @@ public sealed class SevenZipWideStringTests
     }
 
     [Test]
-    public void Alloc_Read_RoundTrip_MixedCaseKeyword()
+    public void Alloc_MixedCaseKeyword_RoundTrips()
     {
         var ptr = SevenZipWideString.Alloc("LZMA2");
         try
@@ -66,7 +66,7 @@ public sealed class SevenZipWideStringTests
     }
 
     [Test]
-    public void Alloc_Read_RoundTrip_BmpUnicode()
+    public void Alloc_BmpUnicode_RoundTrips()
     {
         // U+00E9 (é), U+4E2D (中), U+00FC (ü) — all in BMP, safely representable as wchar_t
         const string value = "é中ü";
@@ -98,7 +98,7 @@ public sealed class SevenZipWideStringTests
     [TestCase("off")]
     [TestCase("e")]
     [TestCase("0")]
-    public void Alloc_Read_RoundTrip_CommonPropertyValues(string value)
+    public void Alloc_CommonPropertyValues_RoundTrips(string value)
     {
         var ptr = SevenZipWideString.Alloc(value);
         try

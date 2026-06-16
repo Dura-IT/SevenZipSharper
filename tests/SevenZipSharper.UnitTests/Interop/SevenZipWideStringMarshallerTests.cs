@@ -30,7 +30,7 @@ public sealed unsafe class SevenZipWideStringMarshallerTests
     }
 
     [Test]
-    public void ConvertToUnmanaged_Read_RoundTrip_EmptyString()
+    public void ConvertToUnmanaged_EmptyString_RoundTrips()
     {
         var ptr = SevenZipWideStringMarshaller.ConvertToUnmanaged(string.Empty);
         try
@@ -44,7 +44,7 @@ public sealed unsafe class SevenZipWideStringMarshallerTests
     }
 
     [Test]
-    public void ConvertToUnmanaged_Read_RoundTrip_SingleAsciiChar()
+    public void ConvertToUnmanaged_SingleAsciiChar_RoundTrips()
     {
         var ptr = SevenZipWideStringMarshaller.ConvertToUnmanaged("x");
         try
@@ -58,7 +58,7 @@ public sealed unsafe class SevenZipWideStringMarshallerTests
     }
 
     [Test]
-    public void ConvertToUnmanaged_Read_RoundTrip_MultiCharAscii()
+    public void ConvertToUnmanaged_MultiCharAscii_RoundTrips()
     {
         var ptr = SevenZipWideStringMarshaller.ConvertToUnmanaged("LZMA");
         try
@@ -72,7 +72,7 @@ public sealed unsafe class SevenZipWideStringMarshallerTests
     }
 
     [Test]
-    public void ConvertToUnmanaged_Read_RoundTrip_MixedCaseKeyword()
+    public void ConvertToUnmanaged_MixedCaseKeyword_RoundTrips()
     {
         var ptr = SevenZipWideStringMarshaller.ConvertToUnmanaged("LZMA2");
         try
@@ -86,7 +86,7 @@ public sealed unsafe class SevenZipWideStringMarshallerTests
     }
 
     [Test]
-    public void ConvertToUnmanaged_Read_RoundTrip_BmpUnicode()
+    public void ConvertToUnmanaged_BmpUnicode_RoundTrips()
     {
         // U+00E9 (é), U+4E2D (中), U+00FC (ü) — all in BMP, safely representable as wchar_t
         const string value = "é中ü";
@@ -105,7 +105,7 @@ public sealed unsafe class SevenZipWideStringMarshallerTests
     [TestCase("off")]
     [TestCase("e")]
     [TestCase("0")]
-    public void ConvertToUnmanaged_Read_RoundTrip_CommonPropertyValues(string value)
+    public void ConvertToUnmanaged_CommonPropertyValues_RoundTrips(string value)
     {
         var ptr = SevenZipWideStringMarshaller.ConvertToUnmanaged(value);
         try
