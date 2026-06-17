@@ -15,33 +15,36 @@ The .NET / 7-Zip wrapper ecosystem has a long lineage:
 
 1. **Original CodePlex project** (circa 2007) — Targeted .NET Framework 2.0 and Windows. Built around the 7-Zip COM interface via P/Invoke, exposing `SevenZipExtractor`, `SevenZipCompressor`, and `SevenZipSfx` with event-based progress.
 
-2. **[SevenZipSharp](https://github.com/tomap/SevenZipSharp)** — Migrated the project to GitHub when CodePlex shut down.
+2. **[SevenZipSharp](https://github.com/tomap/SevenZipSharp)** by [tomap](https://github.com/tomap) — Migrated the project to GitHub when CodePlex shut down.
 
-3. **[SevenZipSharp](https://github.com/squid-box/SevenZipSharp)** — Updated targets to .NET Standard 2.0, .NET Framework 4.7.2, and .NET Core 3.1. Cleaned up tests and added CI. Released as version 1.6.2 and archived in April 2024.
+3. **[SevenZipSharp](https://github.com/squid-box/SevenZipSharp)** by [squid-box](https://github.com/squid-box) — Updated targets to .NET Standard 2.0, .NET Framework 4.7.2, and .NET Core 3.1. Cleaned up tests and added CI. Released as version 1.6.2 and archived in April 2024.
 
-4. **[SharpSevenZip](https://github.com/JeremyAnsel/SharpSevenZip)** — A fork of SevenZipSharp that extended targets to .NET Framework 4.8, .NET 6, and .NET 8, with benchmarks and code improvements.
+4. **[SharpSevenZip](https://github.com/JeremyAnsel/SharpSevenZip)** by [JeremyAnsel](https://github.com/JeremyAnsel) — A fork of SevenZipSharp that extended targets to .NET Framework 4.8, .NET 6, and .NET 8, with benchmarks and code improvements.
 
-**SevenZipSharper** starts from the low-level COM/P-Invoke declarations in [SevenZipSharp](https://github.com/squid-box/SevenZipSharp) — the part that required the most tedious vtable and marshaling research — and builds a fully rewritten public API on top, designed for the modern .NET ecosystem.
+All three forks share the same COM interop foundation: `[ComImport]` interface declarations that route every call through the CLR's runtime-generated marshalling layer (a Runtime Callable Wrapper). This approach works on .NET Framework and .NET Standard, but the marshalling code lives in the runtime rather than in your build output.
 
-> **Attribution:** The COM/P-Invoke declarations for `IInArchive`, `IOutArchive`, `IArchiveUpdateCallback`, `IArchiveOpenCallback`, `IProgress`, the property ID enums, and the `CreateObject` binding are derived from [SevenZipSharp](https://github.com/squid-box/SevenZipSharp). Thank you for doing the tedious vtable and marshaling research.
+**SevenZipSharper** takes a different approach at the COM layer. It uses `[GeneratedComInterface]` and `[GeneratedComClass]` — source generators that emit all marshalling code at compile time, with no runtime-generated wrappers involved. This requires .NET 7+ (and in practice .NET 8, where `[GeneratedComInterface]` matured) but gives full control over the interop boundary. The public API is also a clean-room rewrite: `Task`/`CancellationToken` throughout, `IProgress<T>` for progress, and `Result<T>` for error handling — rather than an incremental update to the original event-based surface.
+
+> **Attribution:** The COM/P-Invoke declarations for `IInArchive`, `IOutArchive`, `IArchiveUpdateCallback`, `IArchiveOpenCallback`, `IProgress`, the property ID enums, and the `CreateObject` binding are derived from [squid-box's SevenZipSharp](https://github.com/squid-box/SevenZipSharp). Thank you for doing the tedious vtable and marshaling research.
 
 ---
 
 ## Why SevenZipSharper
 
-| | SevenZipSharp | SharpSevenZip | **SevenZipSharper** |
+| | SevenZipSharp (squid-box) | SharpSevenZip (JeremyAnsel) | **SevenZipSharper** |
 |---|---|---|---|
 | **Status** | Archived (2024) | Active | Active |
 | **Target frameworks** | .NET Std 2.0 / FX 4.7.2 / Core 3.1 | .NET Std 2.0 / FX 4.8 / .NET 6–8 | .NET 8 + .NET 10 |
+| **COM interop** | `[ComImport]` (runtime marshalling) | `[ComImport]` (runtime marshalling) | `[GeneratedComInterface]` (compile-time) |
 | **Async model** | Events + callbacks | Events + callbacks | `Task` / `CancellationToken` |
 | **Progress reporting** | Events | Events | `IProgress<T>` |
 | **Error handling** | Exceptions only | Exceptions only | `Result<T>` (FluentResults) |
 | **Native library** | Caller must supply path | Caller must supply path | Bundled RID assets — zero config |
 | **Cross-platform** | Windows-centric | Windows-centric | Windows, macOS, Linux |
 | **Nullable** | Not enforced | Partial | Fully enabled |
-| **DI / logging** | None | None | `ILogger<T>` / Serilog |
+| **Logging** | None | None | Bring your own `ILogger<T>` |
 
-Both existing libraries share the original API shape and require the caller to locate and supply a `7z.dll`. SevenZipSharper ships the correct native binary for your platform as a NuGet RID asset — the same pattern used by SkiaSharp and SQLitePCLRaw — so it works out of the box on Windows, macOS, and Linux with no system dependencies or path configuration.
+Both [squid-box's SevenZipSharp](https://github.com/squid-box/SevenZipSharp) and [JeremyAnsel's SharpSevenZip](https://github.com/JeremyAnsel/SharpSevenZip) share the original API shape and require the caller to locate and supply a `7z.dll`. SevenZipSharper ships the correct native binary for your platform as a NuGet RID asset — the same pattern used by SkiaSharp and SQLitePCLRaw — so it works out of the box on Windows, macOS, and Linux with no system dependencies or path configuration.
 
 ---
 
@@ -60,18 +63,7 @@ Both existing libraries share the original API shape and require the caller to l
 
 **.NET Framework and .NET Standard are not supported.** The COM interop layer requires `[GeneratedComInterface]`/`[GeneratedComClass]` (.NET 7+) and native library resolution requires `NativeLibrary.SetDllImportResolver` (.NET Core 3.0+). Neither API exists on .NET Framework or any version of .NET Standard.
 
-### Native library delivery
-
-| | SevenZipSharp | SharpSevenZip | **SevenZipSharper** |
-|---|---|---|---|
-| Windows x64 | Caller supplies `7z.dll` | Caller supplies `7z.dll` | **Bundled** |
-| Windows Arm64 | — | — | **Bundled** |
-| macOS Arm64 | — | — | **Bundled** |
-| macOS x64 | — | — | **Bundled** |
-| Linux x64 | — | — | **Bundled** |
-| Linux Arm64 | — | — | **Bundled** |
-
-Native 7-Zip libraries are bundled as RID-specific NuGet assets under `runtimes/<RID>/native/`. .NET resolves the correct binary automatically at runtime — no system 7-Zip installation required.
+Native 7-Zip libraries for Windows x64/Arm64, macOS Arm64/x64, and Linux x64/Arm64 are bundled as RID-specific NuGet assets under `runtimes/<RID>/native/`. .NET resolves the correct binary automatically at runtime — no system 7-Zip installation required.
 
 ---
 
@@ -83,7 +75,7 @@ Native 7-Zip libraries are bundled as RID-specific NuGet assets under `runtimes/
 | ZIP (`.zip`, `.jar`, `.epub`, `.apk`) | Yes | Yes |
 | gzip (`.gz`, `.tgz`) | Yes | Yes |
 | bzip2 (`.bz2`, `.tbz2`) | Yes | Yes |
-| XZ (`.xz`, `.txz`) | Yes | Yes |
+| XZ (`.xz`, `.txz`) | Yes | — |
 | TAR (`.tar`) | Yes | Yes |
 | WIM (`.wim`) | Yes | Yes |
 | CAB (`.cab`) | Yes | — |
@@ -91,7 +83,8 @@ Native 7-Zip libraries are bundled as RID-specific NuGet assets under `runtimes/
 | LZH (`.lzh`, `.lha`) | Yes | — |
 | ISO (`.iso`) | Yes | — |
 
-**RAR is not supported.** The unRAR source code carries a redistribution restriction that is incompatible with SevenZipSharper's LGPL licence. If you need RAR extraction, use a dedicated unRAR library alongside this one.
+> [!NOTE]
+> **RAR is not supported.** The unRAR source code carries a redistribution restriction that is incompatible with SevenZipSharper's LGPL licence. If you need RAR extraction, use a dedicated unRAR library alongside this one.
 
 ### Format × method compatibility
 
