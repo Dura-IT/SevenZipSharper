@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-17
+
+First stable release. The public API is declared stable; future breaking changes
+will increment the major version.
+
+### Added
+
+- `ARCHITECTURE.md` — technical guide to the COM interop layer, native library
+  resolution, PROPVARIANT/BSTR/wchar_t marshalling, and the source-generated
+  interface approach.
+
+### Fixed
+
+- Windows PROPVARIANT marshalling (24 vs 16 bytes on x64): `ISetProperties.SetProperties`
+  was returning `E_INVALIDARG` (compression silently failed on Windows);
+  `IInArchive.GetProperty` / `GetArchiveProperty` could cause
+  `AccessViolationException` when reading archive properties. Both interop paths
+  are now correct on all platforms.
+- `ArchiveEntry.Path` now always uses forward slashes regardless of OS. 7-Zip on
+  Windows returns backslash-separated paths; these are now normalized at the
+  interop boundary to match the documented contract.
+
 ## [0.2.0] - 2026-06-15
 
 ### Added
@@ -93,7 +115,8 @@ published as pre-release pending native library compilation for all supported pl
   `osx-x64`, `linux-x64`, `linux-arm64` via `NativeLibrary.SetDllImportResolver`
 - GitHub Actions CI: build + test on Ubuntu, Windows, macOS; pack job
 
-[Unreleased]: https://github.com/Dura-IT/SevenZipSharper/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Dura-IT/SevenZipSharper/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Dura-IT/SevenZipSharper/releases/tag/v1.0.0
 [0.2.0]: https://github.com/Dura-IT/SevenZipSharper/releases/tag/v0.2.0
 [0.1.1]: https://github.com/Dura-IT/SevenZipSharper/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Dura-IT/SevenZipSharper/releases/tag/v0.1.0

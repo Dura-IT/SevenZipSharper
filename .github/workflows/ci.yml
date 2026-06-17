@@ -78,8 +78,10 @@ jobs:
             rid: win-arm64
           - os: macos-latest
             rid: osx-arm64
-          - os: macos-13
+          - os: macos-latest
             rid: osx-x64
+            dotnet_arch: x64
+            arch_prefix: arch -x86_64
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -91,6 +93,7 @@ jobs:
           dotnet-version: |
             8.x
             10.x
+          architecture: ${{ matrix.dotnet_arch }}
           cache: true
           cache-dependency-path: '**/*.csproj'
 
@@ -110,10 +113,11 @@ jobs:
           rm natives.tar.gz
 
       - name: Build
-        run: dotnet build -c Release --nologo
+        run: ${{ matrix.arch_prefix }} dotnet build -c Release --nologo
 
       - name: Test (integration)
         run: >
+          ${{ matrix.arch_prefix }}
           dotnet test tests/SevenZipSharper.IntegrationTests/SevenZipSharper.IntegrationTests.csproj
           -c Release --nologo --no-build
 
