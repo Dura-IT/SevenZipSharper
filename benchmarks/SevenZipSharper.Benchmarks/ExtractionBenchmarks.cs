@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -15,9 +16,11 @@ namespace SevenZipSharper.Benchmarks;
 /// Requires native 7-Zip libraries in runtimes/&lt;RID&gt;/native/ to run.
 /// </summary>
 /// <remarks>
-/// Per-iteration allocations (the MemoryStream wrapping the archive bytes, the output buffer reset)
-/// are excluded from the measurement window via <see cref="IterationSetupAttribute"/>. Only the
-/// open + list + extract sequence is timed.
+/// Both extractors are created and opened in <see cref="IterationSetupAttribute"/> so the timed
+/// window covers only decompression: <see cref="SevenZipExtractor.ExtractEntryAsync"/> for
+/// SevenZipSharper and <see cref="global::SharpSevenZip.SharpSevenZipExtractor.ExtractFile"/>
+/// for SharpSevenZip. Both call the same underlying native <c>IInArchive::Extract</c> on a
+/// pre-opened archive.
 /// </remarks>
 [MemoryDiagnoser]
 [SimpleJob(RuntimeMoniker.Net80)]
@@ -29,7 +32,11 @@ public class ExtractionBenchmarks
 
     private byte[] _archive = null!;
     private MemoryStream _outputBuffer = null!;
-    private MemoryStream _archiveStream = null!;
+    private MemoryStream _oursStream = null!;
+    private MemoryStream _sharpStream = null!;
+    private SevenZipExtractor _oursExtractor = null!;
+    private IReadOnlyList<ArchiveEntry> _oursEntries = null!;
+    private global::SharpSevenZip.SharpSevenZipExtractor _sharpExtractor = null!;
 
     [GlobalSetup]
     public async Task GlobalSetupAsync()
@@ -49,47 +56,46 @@ public class ExtractionBenchmarks
         );
         _archive = ms.ToArray();
         _outputBuffer = new MemoryStream(capacity: 2 * 1024 * 1024);
+
+        global::SharpSevenZip.SharpSevenZipExtractor.SetLibraryPath(NativeLibPath);
     }
 
     [IterationSetup]
     public void IterationSetup()
     {
         _outputBuffer.SetLength(0);
-        _archiveStream = new MemoryStream(_archive, writable: false);
+
+        _oursStream = new MemoryStream(_archive, writable: false);
+        _oursExtractor = new SevenZipExtractor(
+            _oursStream,
+            Format,
+            NullLogger<SevenZipExtractor>.Instance
+        );
+        _oursExtractor.OpenAsync().GetAwaiter().GetResult();
+        _oursEntries = _oursExtractor.ListEntriesAsync().GetAwaiter().GetResult().Value;
+
+        _sharpStream = new MemoryStream(_archive, writable: false);
+        _sharpExtractor = new global::SharpSevenZip.SharpSevenZipExtractor(_sharpStream);
     }
 
     [IterationCleanup]
-    public void IterationCleanup() => _archiveStream.Dispose();
+    public void IterationCleanup()
+    {
+        _oursExtractor.Dispose();
+        _oursStream.Dispose();
+        _sharpExtractor.Dispose();
+        _sharpStream.Dispose();
+    }
 
     [GlobalCleanup]
     public void GlobalCleanup() => _outputBuffer.Dispose();
 
     [Benchmark(Description = "SevenZipSharper")]
-    public async Task ExtractWithSevenZipSharper()
-    {
-        using var extractor = new SevenZipExtractor(
-            _archiveStream,
-            Format,
-            NullLogger<SevenZipExtractor>.Instance
-        );
-        var openResult = await extractor.OpenAsync();
-        if (openResult.IsFailed)
-            return;
-        var entries = await extractor.ListEntriesAsync();
-        if (entries.IsFailed)
-            return;
-        foreach (var entry in entries.Value)
-            await extractor.ExtractEntryAsync(entry, _outputBuffer);
-    }
+    public Task ExtractWithSevenZipSharper() =>
+        _oursExtractor.ExtractEntryAsync(_oursEntries[0], _outputBuffer);
 
     [Benchmark(Description = "SharpSevenZip", Baseline = true)]
-    public Task ExtractWithSharpSevenZip() =>
-        Task.Run(() =>
-        {
-            global::SharpSevenZip.SharpSevenZipExtractor.SetLibraryPath(NativeLibPath);
-            using var extractor = new global::SharpSevenZip.SharpSevenZipExtractor(_archiveStream);
-            extractor.ExtractFile(0, _outputBuffer);
-        });
+    public void ExtractWithSharpSevenZip() => _sharpExtractor.ExtractFile(0, _outputBuffer);
 
     internal static string NativeLibPath =>
         Path.Combine(

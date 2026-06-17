@@ -14,10 +14,11 @@ namespace SevenZipSharper.Benchmarks;
 /// levels and TFMs. Requires native 7-Zip libraries in runtimes/&lt;RID&gt;/native/ to run.
 /// </summary>
 /// <remarks>
-/// Per-iteration allocations (the MemoryStream wrapping the test payload) are excluded from the
-/// measurement window via <see cref="IterationSetupAttribute"/>; only the compression call itself
-/// is timed. The compressor instance is reused across iterations because both libraries support
-/// re-invocation, matching real-world usage of a long-lived compressor.
+/// Both compressor instances are created once in <see cref="GlobalSetupAttribute"/> and reused
+/// across iterations — both libraries support re-invocation, matching real-world usage of a
+/// long-lived compressor. Per-iteration allocations (the MemoryStream wrapping the test payload)
+/// are excluded from the measurement window via <see cref="IterationSetupAttribute"/>; only the
+/// compress call itself is timed.
 /// </remarks>
 [MemoryDiagnoser]
 [SimpleJob(RuntimeMoniker.Net80)]
@@ -33,9 +34,29 @@ public class CompressionBenchmarks
 
     private MemoryStream _outputBuffer = null!;
     private MemoryStream _payloadStream = null!;
+    private SevenZipCompressor _compressor = null!;
+    private global::SharpSevenZip.SharpSevenZipCompressor _sharpCompressor = null!;
 
     [GlobalSetup]
-    public void GlobalSetup() => _outputBuffer = new MemoryStream(capacity: 2 * 1024 * 1024);
+    public void GlobalSetup()
+    {
+        _outputBuffer = new MemoryStream(capacity: 2 * 1024 * 1024);
+
+        var parameters = CompressionParameters.Default with { Level = Level };
+        _compressor = new SevenZipCompressor(
+            ArchiveFormat.SevenZip,
+            parameters,
+            NullLogger<SevenZipCompressor>.Instance
+        );
+
+        global::SharpSevenZip.SharpSevenZipCompressor.SetLibraryPath(
+            ExtractionBenchmarks.NativeLibPath
+        );
+        _sharpCompressor = new global::SharpSevenZip.SharpSevenZipCompressor
+        {
+            CompressionLevel = MapLevel(Level),
+        };
+    }
 
     [IterationSetup]
     public void IterationSetup()
@@ -48,36 +69,19 @@ public class CompressionBenchmarks
     public void IterationCleanup() => _payloadStream.Dispose();
 
     [GlobalCleanup]
-    public void GlobalCleanup() => _outputBuffer.Dispose();
-
-    [Benchmark(Description = "SevenZipSharper")]
-    public async Task CompressWithSevenZipSharper()
+    public void GlobalCleanup()
     {
-        var parameters = CompressionParameters.Default with { Level = Level };
-        using var compressor = new SevenZipCompressor(
-            ArchiveFormat.SevenZip,
-            parameters,
-            NullLogger<SevenZipCompressor>.Instance
-        );
-        await compressor.CompressAsync(
-            new[] { ("payload.bin", (Stream)_payloadStream) },
-            _outputBuffer
-        );
+        _compressor.Dispose();
+        _outputBuffer.Dispose();
     }
 
+    [Benchmark(Description = "SevenZipSharper")]
+    public Task CompressWithSevenZipSharper() =>
+        _compressor.CompressAsync(new[] { ("payload.bin", (Stream)_payloadStream) }, _outputBuffer);
+
     [Benchmark(Description = "SharpSevenZip", Baseline = true)]
-    public Task CompressWithSharpSevenZip() =>
-        Task.Run(() =>
-        {
-            global::SharpSevenZip.SharpSevenZipCompressor.SetLibraryPath(
-                ExtractionBenchmarks.NativeLibPath
-            );
-            var compressor = new global::SharpSevenZip.SharpSevenZipCompressor
-            {
-                CompressionLevel = MapLevel(Level),
-            };
-            compressor.CompressStream(_payloadStream, _outputBuffer);
-        });
+    public void CompressWithSharpSevenZip() =>
+        _sharpCompressor.CompressStream(_payloadStream, _outputBuffer);
 
     /// <summary>
     /// Maps <see cref="CompressionLevel"/> (Store=0, Fastest=1, Fast=3, Normal=5, Maximum=7, Ultra=9)
