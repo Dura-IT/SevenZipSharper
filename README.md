@@ -93,7 +93,7 @@ Compression methods and encryption support vary by format. This table is the spe
 | Format    | LZMA2 / LZMA / PPMd                  | BZip2 / Deflate / Copy | Password           | Header encryption |
 |-----------|--------------------------------------|------------------------|--------------------|-------------------|
 | 7z        | Native                               | Native                 | AES-256            | Yes               |
-| Zip       | Silently falls back to Deflate       | Native                 | AES-256 (default)  | —                 |
+| Zip       | LZMA2 → Deflate; LZMA/PPMd native   | Native                 | AES-256 (default)  | —                 |
 | GZip      | Method ignored (built-in gzip codec) | Method ignored         | —                  | —                 |
 | BZip2     | Method ignored (built-in bzip2 codec)| Method ignored         | —                  | —                 |
 | Tar       | Method ignored (container only)      | Method ignored         | —                  | —                 |
@@ -101,7 +101,7 @@ Compression methods and encryption support vary by format. This table is the spe
 
 Notes:
 
-- **Zip + LZMA2** (the default) is rewritten to Deflate before being passed to 7-Zip so the produced archive is a standard ZIP. LZMA and PPMd are similarly substituted by the native layer.
+- **Zip + LZMA2** (the default) is rewritten to Deflate — LZMA2 has no ZIP method code. LZMA (method 14), BZip2 (method 12), and PPMd (method 98) are registered ZIP methods that 7-Zip uses natively; the archives are valid but may not open in tools that only support standard ZIP (Store + Deflate).
 - **Zip password encryption** sets `em=AES`, which 7-Zip writes as AES-256 (WinZip AES, extra field `0x9901`, strength 3) — *not* the legacy weak ZipCrypto.
 - **Solid mode** (`SolidMode = true`, default) is meaningful only for 7z; the property is silently dropped for all other formats.
 - Setting `EncryptionPassword` on GZip / BZip2 / Tar / Xz returns `Result.Fail` rather than silently producing an unencrypted archive. `EncryptHeaders = true` on any non-7z format does the same.

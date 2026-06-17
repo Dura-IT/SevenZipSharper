@@ -4,9 +4,11 @@ namespace SevenZipSharper.Compression;
 /// Compression algorithm applied to entries when creating an archive.
 /// </summary>
 /// <remarks>
-/// Not every method is compatible with every archive format. LZMA and LZMA2 require the
-/// 7z format; Deflate is used with ZIP; BZip2 and PPMd are available in both. Copy
-/// (store) is always available regardless of format.
+/// Not every method is compatible with every archive format. LZMA2 requires the 7z format
+/// (it has no ZIP method code and falls back to Deflate when used with ZIP). LZMA, BZip2,
+/// PPMd, and Deflate are available in both 7z and ZIP, though archives using LZMA, BZip2,
+/// or PPMd compression inside a ZIP may not be readable by tools that only support standard
+/// ZIP (Store + Deflate). Copy (store) is always available regardless of format.
 /// </remarks>
 /// <seealso href="https://www.7-zip.org/7z.html">7-Zip command-line reference</seealso>
 public enum CompressionMethod
