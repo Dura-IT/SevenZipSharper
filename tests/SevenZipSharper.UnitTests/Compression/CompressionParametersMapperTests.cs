@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using AwesomeAssertions;
 using NUnit.Framework;
@@ -205,6 +206,17 @@ public sealed class CompressionParametersMapperTests
         );
 
         names.Should().Contain("s");
+    }
+
+    [Test]
+    public void ToSetProperties_UnknownCompressionMethod_ThrowsArgumentOutOfRange()
+    {
+        var parameters = CompressionParameters.Default with { Method = (CompressionMethod)999 };
+
+        var act = () =>
+            CompressionParametersMapper.ToSetProperties(parameters, ArchiveFormat.SevenZip);
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Test]
