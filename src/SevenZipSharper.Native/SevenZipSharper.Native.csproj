@@ -59,11 +59,4 @@
   </ItemGroup>
 
 
-  <!-- SetTargetFramework=net8.0 on the ProjectReference in SevenZipSharper causes MSBuild to build
-       this project twice in a parallel solution build: once as a solution project (no TargetFramework
-       global property) and once as a dependency (TargetFramework=net8.0 global property). Both builds
-       share the same intermediate output path and race on IncrementalClean writing FileListAbsolute.txt.
-       NoTargets projects produce no compiled outputs, so IncrementalClean is a no-op here. -->
-  <Target Name="IncrementalClean"/>
-
 </Project>
