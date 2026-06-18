@@ -18,10 +18,12 @@
     <RepositoryUrl>https://github.com/Dura-IT/SevenZipSharper</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <Description>Native 7-Zip binaries for DuraIT.SevenZipSharper — Windows, macOS, and Linux (x64 + Arm64).</Description>
+    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="/"/>
+    <None Include="../../assets/icon.png" Pack="true" PackagePath="\" Condition="Exists('../../assets/icon.png')"/>
     <None Include="build/DuraIT.SevenZipSharper.Native.targets" Pack="true" PackagePath="build/"/>
     <None Include="buildTransitive/DuraIT.SevenZipSharper.Native.targets" Pack="true" PackagePath="buildTransitive/"/>
     <None Include="runtimes/win-x64/native/7z.dll" Pack="true" PackagePath="runtimes/win-x64/native/"
@@ -55,5 +57,6 @@
       <TargetPath>runtimes/linux-arm64/native/7z.so</TargetPath>
     </None>
   </ItemGroup>
+
 
 </Project>

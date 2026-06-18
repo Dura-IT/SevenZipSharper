@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using AwesomeAssertions;
 using NUnit.Framework;
@@ -208,6 +209,17 @@ public sealed class CompressionParametersMapperTests
     }
 
     [Test]
+    public void ToSetProperties_UnknownCompressionMethod_ThrowsArgumentOutOfRange()
+    {
+        var parameters = CompressionParameters.Default with { Method = (CompressionMethod)999 };
+
+        var act = () =>
+            CompressionParametersMapper.ToSetProperties(parameters, ArchiveFormat.SevenZip);
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Test]
     public void ToSetProperties_SingleCodecFormats_DoNotEmitMethodProperty()
     {
         foreach (var format in new[] { ArchiveFormat.GZip, ArchiveFormat.BZip2, ArchiveFormat.Tar })
@@ -235,5 +247,35 @@ public sealed class CompressionParametersMapperTests
 
             names.Should().Contain("0", $"{format} supports codec selection");
         }
+    }
+
+    /// <summary>
+    /// The mapper is a transparent pass-through for all methods on both 7z and Zip.
+    /// Behaviour for unsupported combinations (e.g. LZMA2 in a ZIP) is delegated to the
+    /// native 7-Zip layer; we do not substitute or validate here.
+    /// </summary>
+    [TestCase(CompressionMethod.Lzma, "LZMA")]
+    [TestCase(CompressionMethod.Lzma2, "LZMA2")]
+    [TestCase(CompressionMethod.BZip2, "BZip2")]
+    [TestCase(CompressionMethod.Ppmd, "PPMd")]
+    [TestCase(CompressionMethod.Deflate, "Deflate")]
+    [TestCase(CompressionMethod.Copy, "Copy")]
+    public void ToSetProperties_Zip_PassesMethodNameThrough(
+        CompressionMethod method,
+        string expectedName
+    )
+    {
+        var p = new CompressionParameters { Method = method };
+        var (names, values) = CompressionParametersMapper.ToSetProperties(p, ArchiveFormat.Zip);
+
+        var methodIndex = System.Array.IndexOf(names, "0");
+        methodIndex.Should().BeGreaterThanOrEqualTo(0);
+        values[methodIndex]
+            .ToStringValue()
+            .Should()
+            .Be(
+                expectedName,
+                "the mapper passes method names through unchanged — 7-Zip decides at the native layer"
+            );
     }
 }

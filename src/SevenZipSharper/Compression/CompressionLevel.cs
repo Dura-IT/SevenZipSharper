@@ -5,8 +5,10 @@ namespace SevenZipSharper.Compression;
 /// archives at the cost of more CPU time and memory.
 /// </summary>
 /// <remarks>
-/// The integer values correspond directly to 7-Zip's <c>-mx</c> switch (0–9). Levels
-/// above <see cref="Normal"/> also increase the dictionary size and number of fast bytes
+/// The integer values correspond to 7-Zip's <c>-mx</c> switch. Only the discrete values
+/// 0, 1, 3, 5, 7, and 9 are defined — intermediate values are not exposed because they
+/// are not meaningful presets in either 7-Zip or the ZIP format. Levels above
+/// <see cref="Normal"/> also increase the dictionary size and number of fast bytes
 /// automatically, which can significantly raise memory usage.
 /// </remarks>
 /// <seealso href="https://www.7-zip.org/7z.html">7-Zip command-line reference</seealso>

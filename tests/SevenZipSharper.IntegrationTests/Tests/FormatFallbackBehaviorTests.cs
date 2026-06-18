@@ -29,14 +29,77 @@ public sealed class FormatFallbackBehaviorTests
     }
 
     /// <summary>
-    /// LZMA2 is not part of the ZIP specification. 7-Zip silently substitutes Deflate; the archive
-    /// remains a valid ZIP file. Callers wanting LZMA-class compression must use the 7z format.
+    /// LZMA2 has no ZIP method code — 7-Zip silently substitutes Deflate (method 8).
+    /// Callers wanting LZMA2 compression must use the 7z format.
     /// </summary>
-    [TestCase(CompressionMethod.Lzma2)]
-    [TestCase(CompressionMethod.Lzma)]
-    [TestCase(CompressionMethod.Ppmd)]
-    public async Task Zip_WithNonZipMethod_FallsBackButProducesValidArchive(
-        CompressionMethod method
+    [Test]
+    public async Task Zip_WithLzma2Method_FallsBackToDeflate()
+    {
+        var parameters = new CompressionParameters
+        {
+            Method = CompressionMethod.Lzma2,
+            Level = CompressionLevel.Normal,
+        };
+
+        using var archive = new MemoryStream();
+        using (
+            var compressor = new SevenZipCompressor(
+                ArchiveFormat.Zip,
+                parameters,
+                NullLogger<SevenZipCompressor>.Instance
+            )
+        )
+        {
+            var entries = new[] { ("fallback.bin", (Stream)new MemoryStream(CompressibleContent)) };
+            (await compressor.CompressAsync(entries, archive))
+                .IsSuccess.Should()
+                .BeTrue("Zip + LZMA2 should succeed via silent Deflate fallback");
+        }
+
+        // Verify the written method code is Deflate (8), not any LZMA variant.
+        archive.Position = 0;
+        using var reader = new System.IO.BinaryReader(
+            archive,
+            System.Text.Encoding.UTF8,
+            leaveOpen: true
+        );
+        reader.ReadInt32(); // local file header signature
+        reader.ReadUInt16(); // version needed
+        reader.ReadUInt16(); // general purpose bit flag
+        var methodCode = reader.ReadUInt16();
+        methodCode
+            .Should()
+            .Be(8, "LZMA2 has no ZIP method code — 7-Zip must substitute Deflate (8)");
+
+        // Confirm roundtrip.
+        archive.Position = 0;
+        using var extractor = new SevenZipExtractor(
+            archive,
+            ArchiveFormat.Zip,
+            NullLogger<SevenZipExtractor>.Instance
+        );
+        (await extractor.OpenAsync()).IsSuccess.Should().BeTrue();
+        var entriesResult = await extractor.ListEntriesAsync();
+        entriesResult.IsSuccess.Should().BeTrue();
+        using var output = new MemoryStream();
+        (await extractor.ExtractEntryAsync(entriesResult.Value[0], output))
+            .IsSuccess.Should()
+            .BeTrue();
+        output.ToArray().Should().BeEquivalentTo(CompressibleContent);
+    }
+
+    /// <summary>
+    /// LZMA (method 14), BZip2 (method 12), and PPMd (method 98) are registered ZIP method
+    /// codes that 7-Zip uses natively — no fallback to Deflate occurs.
+    /// The resulting archives are valid but may not open in tools that only support
+    /// standard ZIP (Store + Deflate).
+    /// </summary>
+    [TestCase(CompressionMethod.Lzma, (ushort)14)]
+    [TestCase(CompressionMethod.BZip2, (ushort)12)]
+    [TestCase(CompressionMethod.Ppmd, (ushort)98)]
+    public async Task Zip_WithNativeZipMethod_WritesCorrectMethodCode(
+        CompressionMethod method,
+        ushort expectedMethodCode
     )
     {
         var parameters = new CompressionParameters
@@ -54,16 +117,31 @@ public sealed class FormatFallbackBehaviorTests
             )
         )
         {
-            var entries = new[] { ("fallback.bin", (Stream)new MemoryStream(CompressibleContent)) };
-            var result = await compressor.CompressAsync(entries, archive);
-            result
+            var entries = new[] { ("payload.bin", (Stream)new MemoryStream(CompressibleContent)) };
+            (await compressor.CompressAsync(entries, archive))
                 .IsSuccess.Should()
-                .BeTrue($"Zip + {method} should succeed (with silent fallback to Deflate)");
+                .BeTrue($"Zip + {method} should succeed without error");
         }
 
-        archive.Length.Should().BeGreaterThan(0);
+        // Verify the local file header contains the expected ZIP method code.
+        archive.Position = 0;
+        using var reader = new System.IO.BinaryReader(
+            archive,
+            System.Text.Encoding.UTF8,
+            leaveOpen: true
+        );
+        reader.ReadInt32(); // local file header signature
+        reader.ReadUInt16(); // version needed
+        reader.ReadUInt16(); // general purpose bit flag
+        var methodCode = reader.ReadUInt16();
+        methodCode
+            .Should()
+            .Be(
+                expectedMethodCode,
+                $"{method} is a registered ZIP method — 7-Zip should use code {expectedMethodCode}, not fall back to Deflate"
+            );
 
-        // Confirm the resulting archive is a valid ZIP and the content roundtrips.
+        // Confirm roundtrip.
         archive.Position = 0;
         using var extractor = new SevenZipExtractor(
             archive,
@@ -73,7 +151,6 @@ public sealed class FormatFallbackBehaviorTests
         (await extractor.OpenAsync()).IsSuccess.Should().BeTrue();
         var entriesResult = await extractor.ListEntriesAsync();
         entriesResult.IsSuccess.Should().BeTrue();
-
         using var output = new MemoryStream();
         (await extractor.ExtractEntryAsync(entriesResult.Value[0], output))
             .IsSuccess.Should()
