@@ -1,5 +1,9 @@
 # SevenZipSharper
 
+<p align="center">
+  <img src="assets/icon@2x.png" width="128" alt="SevenZipSharper logo" />
+</p>
+
 [![NuGet](https://img.shields.io/nuget/v/DuraIT.SevenZipSharper.svg)](https://www.nuget.org/packages/DuraIT.SevenZipSharper/)
 [![CI](https://github.com/Dura-IT/SevenZipSharper/actions/workflows/ci.yml/badge.svg)](https://github.com/Dura-IT/SevenZipSharper/actions/workflows/ci.yml)
 [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=Dura-IT_SevenZipSharper&metric=alert_status)](https://sonarcloud.io/summary/overall?id=Dura-IT_SevenZipSharper)
