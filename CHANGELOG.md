@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-06-22
+
+### Added
+
+- Package icon embedded in both `DuraIT.SevenZipSharper` and
+  `DuraIT.SevenZipSharper.Native` NuGet packages.
+
+### Fixed
+
+- ZIP compression method fallback accuracy: `LZMA`, `BZip2`, and `PPMd` are
+  native ZIP methods and no longer treated as requiring a fallback to Deflate;
+  only `LZMA2` falls back (matching 7-Zip behaviour).
+- Parallel build race conditions in the native packaging project resolved via
+  `Directory.Build.targets` (`FileListAbsolute.txt` write contention and
+  `IncrementalClean` interference under parallel builds).
+
 ## [1.0.0] - 2026-06-17
 
 First stable release. The public API is declared stable; future breaking changes
@@ -115,7 +131,8 @@ published as pre-release pending native library compilation for all supported pl
   `osx-x64`, `linux-x64`, `linux-arm64` via `NativeLibrary.SetDllImportResolver`
 - GitHub Actions CI: build + test on Ubuntu, Windows, macOS; pack job
 
-[Unreleased]: https://github.com/Dura-IT/SevenZipSharper/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Dura-IT/SevenZipSharper/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/Dura-IT/SevenZipSharper/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Dura-IT/SevenZipSharper/releases/tag/v1.0.0
 [0.2.0]: https://github.com/Dura-IT/SevenZipSharper/releases/tag/v0.2.0
 [0.1.1]: https://github.com/Dura-IT/SevenZipSharper/releases/tag/v0.1.1
