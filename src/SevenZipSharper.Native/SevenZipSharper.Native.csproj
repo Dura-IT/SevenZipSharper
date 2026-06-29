@@ -7,7 +7,7 @@
     <NoWarn>NU5128</NoWarn>
     <PackageReadmeFile>README.md</PackageReadmeFile>
 
-    <Version>1.0.1</Version>
+    <Version>1.0.2</Version>
     <PackageOutputPath>$(MSBuildThisFileDirectory)../../artifacts/packages/</PackageOutputPath>
     <PackageId>DuraIT.SevenZipSharper.Native</PackageId>
     <Authors>Ben de Bruijn</Authors>

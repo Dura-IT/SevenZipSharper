@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-06-29
+
+### Changed
+
+- Bundled 7-Zip native libraries updated from 26.01 to 26.02 (bug fixes and
+  security fixes in upstream 7-Zip).
+
 ## [1.0.1] - 2026-06-22
 
 ### Added
@@ -131,7 +138,8 @@ published as pre-release pending native library compilation for all supported pl
   `osx-x64`, `linux-x64`, `linux-arm64` via `NativeLibrary.SetDllImportResolver`
 - GitHub Actions CI: build + test on Ubuntu, Windows, macOS; pack job
 
-[Unreleased]: https://github.com/Dura-IT/SevenZipSharper/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/Dura-IT/SevenZipSharper/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/Dura-IT/SevenZipSharper/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Dura-IT/SevenZipSharper/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Dura-IT/SevenZipSharper/releases/tag/v1.0.0
 [0.2.0]: https://github.com/Dura-IT/SevenZipSharper/releases/tag/v0.2.0
